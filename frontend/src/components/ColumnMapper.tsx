@@ -12,6 +12,7 @@ interface DetectedColumn {
 interface Props {
   columns: DetectedColumn[];
   previewRows: any[];
+  allRows: any[];
   totalRows: number;
   onConfirm: (mapping: Record<string, string>, allRows: any[]) => void;
   error: string | null;
@@ -25,7 +26,7 @@ const TARGET_OPTIONS = [
   { value: 'ignore', label: '— Skip this column —', group: 'other' },
 ];
 
-const ColumnMapper: React.FC<Props> = ({ columns, previewRows, totalRows, onConfirm, error }) => {
+const ColumnMapper: React.FC<Props> = ({ columns, previewRows, allRows, totalRows, onConfirm, error }) => {
   // Auto-map based on column labels
   const autoMap = (): Record<string, string> => {
     const mapping: Record<string, string> = {};
@@ -157,7 +158,7 @@ const ColumnMapper: React.FC<Props> = ({ columns, previewRows, totalRows, onConf
           <Button
             variant="primary"
             size="lg"
-            onClick={() => onConfirm(mapping, previewRows)}
+            onClick={() => onConfirm(mapping, allRows)}
             disabled={!hasItemName}
           >
             Import {totalRows} Items

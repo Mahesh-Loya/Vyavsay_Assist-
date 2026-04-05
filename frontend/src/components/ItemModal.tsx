@@ -36,8 +36,8 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
     const payload = {
       item_name: itemName.trim(),
       category: category.trim() || undefined,
-      price: price ? parseFloat(price) : undefined,
-      quantity: quantity ? parseInt(quantity) : 1,
+      price: price ? (Number.isFinite(parseFloat(price)) ? parseFloat(price) : undefined) : undefined,
+      quantity: quantity ? (parseInt(quantity, 10) || 1) : 1,
       attributes,
     };
 
@@ -195,7 +195,7 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
           </div>
 
           {/* Dynamic schema fields */}
-          {schema.fields.length > 0 && (
+          {(schema?.fields || []).length > 0 && (
             <>
               <div className="border-t border-cream-200 pt-5">
                 <p className="text-xs font-semibold text-ink-100 uppercase tracking-wider mb-4">

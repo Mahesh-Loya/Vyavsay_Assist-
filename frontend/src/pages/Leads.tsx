@@ -35,6 +35,7 @@ const Leads: React.FC = () => {
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [mobileFilter, setMobileFilter] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLeads();
@@ -46,6 +47,7 @@ const Leads: React.FC = () => {
       setLeads(res.data.leads || []);
     } catch (err) {
       console.error('Failed to fetch leads', err);
+      setError('Failed to load leads');
     } finally {
       setLoading(false);
     }
@@ -58,9 +60,18 @@ const Leads: React.FC = () => {
       await client.patch(`/leads/${leadId}`, { stage: newStage });
     } catch (err) {
       console.error('Failed to update stage', err);
+      setError('Failed to update lead stage');
       fetchLeads(); // Revert on error
     }
   };
+
+  // Auto-dismiss error toast
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   // Drag and Drop handlers
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
@@ -419,6 +430,13 @@ const Leads: React.FC = () => {
               );
             })}
           </div>
+        </div>
+      )}
+      {/* Error Toast */}
+      {error && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-soft-rose text-white px-5 py-3 rounded-2xl shadow-lg text-sm font-medium flex items-center gap-2">
+          <XCircle className="w-4 h-4" />
+          {error}
         </div>
       )}
     </motion.div>
