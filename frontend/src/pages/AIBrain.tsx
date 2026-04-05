@@ -175,28 +175,26 @@ const AIBrain: React.FC = () => {
   return (
     <div className="px-5 pt-4 pb-6 lg:px-8 lg:pt-6 max-w-7xl mx-auto">
       {/* Header */}
-      <header className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-display text-[22px] font-bold text-ink-400">AI Brain</h1>
-          <p className="text-ink-50 text-sm mt-0.5">
-            Everything your AI knows about your business
-          </p>
-        </div>
+      <header className="mb-5">
+        <h1 className="font-display text-[22px] font-bold text-ink-400">AI Brain</h1>
+        <p className="text-ink-50 text-[13px] mt-0.5">
+          Everything your AI knows about your business
+        </p>
 
-        {/* Stats pills */}
+        {/* Stats pills — below header, horizontal on all sizes */}
         {inventoryStats && activeTab === 'products' && (
-          <div className="flex gap-2">
-            <div className="bg-pastel-sage rounded-2xl px-4 py-2.5 text-center min-w-[72px]">
-              <p className="text-lg font-bold text-ink-300">{inventoryStats.available}</p>
-              <p className="text-[10px] text-ink-100 uppercase tracking-widest font-semibold">Available</p>
+          <div className="flex gap-2 mt-3">
+            <div className="flex-1 bg-pastel-sage rounded-[16px] px-3 py-2 text-center">
+              <p className="text-lg font-bold font-display text-soft-sage">{inventoryStats.available}</p>
+              <p className="text-[9px] text-soft-sage/70 uppercase tracking-widest font-semibold">Available</p>
             </div>
-            <div className="bg-pastel-rose rounded-2xl px-4 py-2.5 text-center min-w-[72px]">
-              <p className="text-lg font-bold text-ink-300">{inventoryStats.sold}</p>
-              <p className="text-[10px] text-ink-100 uppercase tracking-widest font-semibold">Sold</p>
+            <div className="flex-1 bg-pastel-rose rounded-[16px] px-3 py-2 text-center">
+              <p className="text-lg font-bold font-display text-soft-rose">{inventoryStats.sold}</p>
+              <p className="text-[9px] text-soft-rose/70 uppercase tracking-widest font-semibold">Sold</p>
             </div>
-            <div className="bg-pastel-lavender rounded-2xl px-4 py-2.5 text-center min-w-[72px]">
-              <p className="text-lg font-bold text-ink-300">{inventoryStats.total}</p>
-              <p className="text-[10px] text-ink-100 uppercase tracking-widest font-semibold">Total</p>
+            <div className="flex-1 bg-pastel-lavender rounded-[16px] px-3 py-2 text-center">
+              <p className="text-lg font-bold font-display text-soft-lavender">{inventoryStats.total}</p>
+              <p className="text-[9px] text-soft-lavender/70 uppercase tracking-widest font-semibold">Total</p>
             </div>
           </div>
         )}
@@ -227,11 +225,12 @@ const AIBrain: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-5"
         >
-          {/* Action bar */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Action bar — horizontal scroll on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
             <Button
               variant="primary"
               size="sm"
+              className="flex-shrink-0"
               onClick={() => { setEditingItem(null); setShowItemModal(true); }}
             >
               <Plus className="w-4 h-4 mr-1.5" /> Add Item
@@ -239,35 +238,35 @@ const AIBrain: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
+              className="flex-shrink-0"
               onClick={() => setShowFileUpload(true)}
             >
-              <Upload className="w-4 h-4 mr-1.5" /> Upload Excel/CSV
+              <Upload className="w-4 h-4 mr-1.5" /> Import
             </Button>
             <Button
               variant="ghost"
               size="sm"
+              className="flex-shrink-0"
               onClick={() => setShowSchemaManager(true)}
             >
-              <Settings2 className="w-4 h-4 mr-1.5" /> Manage Fields
+              <Settings2 className="w-4 h-4 mr-1.5" /> Fields
             </Button>
-
-            {/* Download buttons -- pushed to right */}
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDownload('all')}
-              >
-                <Download className="w-4 h-4 mr-1.5" /> Download Inventory
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDownload('sold')}
-              >
-                <FileDown className="w-4 h-4 mr-1.5" /> Sold Report
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-shrink-0"
+              onClick={() => handleDownload('all')}
+            >
+              <Download className="w-4 h-4 mr-1.5" /> Export
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-shrink-0"
+              onClick={() => handleDownload('sold')}
+            >
+              <FileDown className="w-4 h-4 mr-1.5" /> Sold
+            </Button>
           </div>
 
           {/* Info banner about Excel sync */}
