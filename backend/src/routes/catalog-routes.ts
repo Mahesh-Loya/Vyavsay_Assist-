@@ -1,10 +1,19 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import multipart from '@fastify/multipart';
 import ExcelJS from 'exceljs';
 import { CatalogService } from '../services/catalog-service.js';
 import { RagService } from '../services/rag-service.js';
 import { validate, catalogItemCreate, catalogItemUpdate, catalogQuery, catalogBatch, schemaUpdate } from '../utils/validation.js';
+import { uploadCatalogImages } from '../services/catalog-image-service.js';
 
 export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  await server.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+      files: 5,
+    },
+  });
+
   const rag = new RagService(server.supabase);
   const catalog = new CatalogService(server.supabase, rag);
 
@@ -28,6 +37,31 @@ export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance)
   server.get('/stats', async (request, reply) => {
     const stats = await catalog.getStats(request.userId);
     return reply.send(stats);
+  });
+
+  /** Upload product images to Supabase Storage and return public URLs */
+  server.post('/images/upload', async (request, reply) => {
+    const parts = request.files();
+    const hasAnyFile = Symbol('hasAnyFile');
+    let sawFile = false;
+
+    try {
+      const images = await uploadCatalogImages(server.supabase, request.userId, (async function* () {
+        for await (const part of parts) {
+          sawFile = true;
+          yield part;
+        }
+      })());
+
+      if (!sawFile || images.length === 0) {
+        return reply.status(400).send({ error: 'No image files uploaded' });
+      }
+
+      return reply.send({ images });
+    } catch (err: any) {
+      const message = err?.message || 'Failed to upload images';
+      return reply.status(400).send({ error: message });
+    }
   });
 
   /** Export inventory as Excel (.xlsx) — supports ?type=all|available|sold */

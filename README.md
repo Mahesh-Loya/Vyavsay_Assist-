@@ -63,6 +63,7 @@ cd ../frontend && npm install
 PORT=3005
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_STORAGE_BUCKET=catalog-images
 GITHUB_PAT=your-github-pat-for-ai
 AUTH_SESSIONS_DIR=./auth_sessions_v2/
 FRONTEND_URL=http://localhost:3004
@@ -97,12 +98,13 @@ cd frontend && npm run dev
 1. **Onboarding** → New users fill in their Business Name, Industry, and Services.
 2. **QR Scan** → Link your WhatsApp number via QR code (Baileys).
 3. **Knowledge Base** → Upload your business FAQs, pricing, and services. Each entry is chunked and vectorized.
-4. **Auto-Reply** → When a customer messages you on WhatsApp:
+4. **Product Images** → Add product photos directly from the dashboard. Images are uploaded to Supabase Storage and stored as public URLs on each catalog item.
+5. **Auto-Reply** → When a customer messages you on WhatsApp:
    - Message is analyzed by GPT-4o for **intent** and **lead score**.
    - RAG retrieves relevant **knowledge base** entries.
    - AI generates a **context-aware reply** using your business profile + knowledge.
    - Reply is sent automatically via Baileys.
-5. **CRM Dashboard** → Track conversations, leads, tasks, and analytics in real-time.
+6. **CRM Dashboard** → Track conversations, leads, tasks, and analytics in real-time.
 
 ## 📂 Project Structure
 

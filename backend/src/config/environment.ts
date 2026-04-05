@@ -12,6 +12,7 @@ export const config = {
   SUPABASE_URL: process.env.SUPABASE_URL || '',
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  SUPABASE_STORAGE_BUCKET: process.env.SUPABASE_STORAGE_BUCKET || 'catalog-images',
 
   // AI — GPT-4o via Azure
   GITHUB_PAT: process.env.GITHUB_PAT || '',
