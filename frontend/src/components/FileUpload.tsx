@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import client from '../api/client';
 import { Upload, FileSpreadsheet, Loader2, X, AlertCircle, Check } from 'lucide-react';
+import { Button } from './ui/Button';
 import ColumnMapper from './ColumnMapper';
 
 interface Props {
@@ -86,17 +87,17 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card border border-border/50 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-400/40 backdrop-blur-sm">
+      <div className="bg-cream-50 rounded-[24px] w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border/50 sticky top-0 bg-card rounded-t-3xl z-10">
+        <div className="flex items-center justify-between p-6 border-b border-cream-200 sticky top-0 bg-cream-50 rounded-t-[24px] z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-              <FileSpreadsheet className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 bg-pastel-lavender rounded-xl flex items-center justify-center">
+              <FileSpreadsheet className="w-5 h-5 text-soft-lavender" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Import Inventory</h2>
-              <p className="text-xs text-muted-foreground">
+              <h2 className="text-xl font-bold text-ink-400">Import Inventory</h2>
+              <p className="text-xs text-ink-50">
                 {step === 'upload' && 'Upload an Excel or CSV file'}
                 {step === 'mapping' && `${fileName} — ${totalRows} rows found`}
                 {step === 'processing' && 'Processing...'}
@@ -104,8 +105,8 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl transition-all">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-2 hover:bg-cream-100 rounded-xl transition-all">
+            <X className="w-5 h-5 text-ink-100" />
           </button>
         </div>
 
@@ -115,7 +116,7 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
-              className="border-2 border-dashed border-border/50 rounded-3xl p-12 text-center hover:border-primary/50 transition-all cursor-pointer"
+              className="border-2 border-dashed border-cream-200 rounded-[20px] p-12 text-center hover:border-soft-lavender transition-all cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
               <input
@@ -126,18 +127,18 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
                 className="hidden"
               />
               {uploading ? (
-                <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+                <Loader2 className="w-12 h-12 text-ink-300 mx-auto mb-4 animate-spin" />
               ) : (
-                <Upload className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+                <Upload className="w-12 h-12 text-ink-50/40 mx-auto mb-4" />
               )}
-              <h3 className="text-lg font-bold mb-2">
+              <h3 className="text-lg font-bold text-ink-300 mb-2">
                 {uploading ? 'Parsing file...' : 'Drop Excel/CSV here or click to browse'}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-ink-50">
                 Supports .xlsx, .xls, .csv — up to 10MB
               </p>
               {error && (
-                <div className="mt-4 text-red-400 text-sm flex items-center justify-center gap-2 bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+                <div className="mt-4 text-soft-rose text-sm flex items-center justify-center gap-2 bg-pastel-rose/40 p-3 rounded-xl">
                   <AlertCircle className="w-4 h-4" /> {error}
                 </div>
               )}
@@ -158,31 +159,32 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
           {/* Step 3: Processing */}
           {step === 'processing' && (
             <div className="text-center py-16">
-              <Loader2 className="w-16 h-16 text-primary mx-auto mb-6 animate-spin" />
-              <h3 className="text-xl font-bold mb-2">Processing {totalRows} items...</h3>
-              <p className="text-muted-foreground">Generating embeddings and storing in database. This may take a moment.</p>
+              <Loader2 className="w-16 h-16 text-ink-300 mx-auto mb-6 animate-spin" />
+              <h3 className="text-xl font-bold text-ink-300 mb-2">Processing {totalRows} items...</h3>
+              <p className="text-ink-50">Generating embeddings and storing in database. This may take a moment.</p>
             </div>
           )}
 
           {/* Step 4: Done */}
           {step === 'done' && result && (
             <div className="text-center py-16">
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="w-10 h-10 text-green-400" />
+              <div className="w-20 h-20 bg-pastel-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10 text-soft-sage" />
               </div>
-              <h3 className="text-2xl font-bold mb-2">Import Complete!</h3>
-              <p className="text-muted-foreground mb-6">
-                <span className="text-green-400 font-bold">{result.added}</span> items added
+              <h3 className="text-2xl font-bold text-ink-400 mb-2">Import Complete!</h3>
+              <p className="text-ink-100 mb-6">
+                <span className="text-soft-sage font-bold">{result.added}</span> items added
                 {result.failed > 0 && (
-                  <>, <span className="text-red-400 font-bold">{result.failed}</span> failed</>
+                  <>, <span className="text-soft-rose font-bold">{result.failed}</span> failed</>
                 )}
               </p>
-              <button
+              <Button
+                variant="primary"
+                size="lg"
                 onClick={() => { onComplete(); onClose(); }}
-                className="bg-primary hover:bg-primary/90 text-white font-bold px-8 py-3 rounded-2xl transition-all"
               >
                 Done
-              </button>
+              </Button>
             </div>
           )}
         </div>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import client from '../api/client';
 import { InventorySchema } from '../pages/AIBrain';
-import { X, Loader2, Save, Package } from 'lucide-react';
+import { X, Save, Package } from 'lucide-react';
+import { Button } from './ui/Button';
 
 interface Props {
   schema: InventorySchema;
@@ -63,7 +64,7 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
           <select
             value={value}
             onChange={(e) => handleAttributeChange(field.key, e.target.value)}
-            className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full bg-pastel-lavender/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
           >
             <option value="">Select {field.label}</option>
             {(field.options || []).map(opt => (
@@ -79,7 +80,7 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
             value={value}
             onChange={(e) => handleAttributeChange(field.key, e.target.value ? parseFloat(e.target.value) : '')}
             placeholder={field.label}
-            className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 placeholder:text-ink-100/50 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
           />
         );
 
@@ -90,9 +91,9 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
               type="checkbox"
               checked={!!value}
               onChange={(e) => handleAttributeChange(field.key, e.target.checked)}
-              className="w-5 h-5 rounded border-border accent-primary"
+              className="w-5 h-5 rounded border-cream-200 accent-ink-300"
             />
-            <span className="text-sm">{field.label}</span>
+            <span className="text-sm text-ink-200">{field.label}</span>
           </label>
         );
 
@@ -102,7 +103,7 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
             type="date"
             value={value}
             onChange={(e) => handleAttributeChange(field.key, e.target.value)}
-            className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
           />
         );
 
@@ -113,24 +114,24 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
             value={value}
             onChange={(e) => handleAttributeChange(field.key, e.target.value)}
             placeholder={field.label}
-            className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 placeholder:text-ink-100/50 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
           />
         );
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card border border-border/50 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-400/40 backdrop-blur-sm">
+      <div className="bg-cream-50 rounded-[24px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border/50 sticky top-0 bg-card rounded-t-3xl z-10">
+        <div className="flex items-center justify-between p-6 border-b border-cream-200 sticky top-0 bg-cream-50 rounded-t-[24px] z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-              <Package className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 bg-pastel-sky/60 rounded-xl flex items-center justify-center">
+              <Package className="w-5 h-5 text-ink-200" />
             </div>
-            <h2 className="text-xl font-bold">{isEditing ? 'Edit Item' : 'Add New Item'}</h2>
+            <h2 className="text-xl font-bold text-ink-400">{isEditing ? 'Edit Item' : 'Add New Item'}</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl transition-all">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-cream-200 transition-colors cursor-pointer text-ink-100">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -140,7 +141,7 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
           {/* Core fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              <label className="block text-xs font-semibold text-ink-100 uppercase tracking-wider mb-2">
                 Item Name *
               </label>
               <input
@@ -149,12 +150,12 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
                 onChange={(e) => setItemName(e.target.value)}
                 placeholder="e.g., Honda City SV 2022"
                 required
-                className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 placeholder:text-ink-100/50 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              <label className="block text-xs font-semibold text-ink-100 uppercase tracking-wider mb-2">
                 Category
               </label>
               <input
@@ -162,12 +163,12 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g., Sedan, SUV, Hatchback"
-                className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 placeholder:text-ink-100/50 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              <label className="block text-xs font-semibold text-ink-100 uppercase tracking-wider mb-2">
                 Price
               </label>
               <input
@@ -175,12 +176,12 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="e.g., 650000"
-                className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 placeholder:text-ink-100/50 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              <label className="block text-xs font-semibold text-ink-100 uppercase tracking-wider mb-2">
                 Quantity
               </label>
               <input
@@ -188,7 +189,7 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 min="0"
-                className="w-full bg-muted/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-pastel-honey/40 border border-cream-200 rounded-xl px-4 py-3 text-ink-400 placeholder:text-ink-100/50 focus:outline-none focus:ring-2 focus:ring-ink-100/30"
               />
             </div>
           </div>
@@ -196,15 +197,15 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
           {/* Dynamic schema fields */}
           {schema.fields.length > 0 && (
             <>
-              <div className="border-t border-border/30 pt-5">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
+              <div className="border-t border-cream-200 pt-5">
+                <p className="text-xs font-semibold text-ink-100 uppercase tracking-wider mb-4">
                   Custom Fields
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {schema.fields.map(field => (
                   <div key={field.key}>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                    <label className="block text-xs font-semibold text-ink-100 uppercase tracking-wider mb-2">
                       {field.label} {field.required && '*'}
                     </label>
                     {renderField(field)}
@@ -216,28 +217,29 @@ const ItemModal: React.FC<Props> = ({ schema, item, onSave, onClose }) => {
 
           {/* Error */}
           {error && (
-            <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+            <div className="text-soft-rose text-sm bg-pastel-rose/40 p-3 rounded-xl border border-pastel-rose/60">
               {error}
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/30">
-            <button
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-cream-200">
+            <Button
               type="button"
+              variant="ghost"
               onClick={onClose}
-              className="px-6 py-3 rounded-xl font-semibold text-muted-foreground hover:bg-muted transition-all"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving || !itemName.trim()}
-              className="bg-primary hover:bg-primary/90 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50"
+              loading={saving}
             >
-              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              {!saving && <Save className="w-4 h-4 mr-2" />}
               {isEditing ? 'Update' : 'Add Item'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

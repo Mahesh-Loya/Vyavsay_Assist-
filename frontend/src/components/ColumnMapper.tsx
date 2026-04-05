@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, AlertCircle } from 'lucide-react';
+import { Button } from './ui/Button';
 
 interface DetectedColumn {
   key: string;
@@ -71,29 +72,29 @@ const ColumnMapper: React.FC<Props> = ({ columns, previewRows, totalRows, onConf
 
   return (
     <div className="space-y-6">
-      <div className="bg-muted/30 border border-border/30 rounded-2xl p-4 text-sm text-muted-foreground">
+      <div className="bg-pastel-sky/30 rounded-[18px] p-4 text-sm text-ink-100">
         Map your file columns to inventory fields. We auto-detected {columns.length} columns and {totalRows} rows.
       </div>
 
       {/* Mapping table */}
       <div className="space-y-3">
         {columns.map((col) => (
-          <div key={col.label} className="flex items-center gap-4 bg-muted/10 border border-border/20 rounded-xl p-3">
+          <div key={col.label} className="flex items-center gap-4 bg-cream-100 rounded-xl p-3">
             {/* Source column */}
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{col.label}</p>
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-[13px] font-semibold text-ink-300 truncate">{col.label}</p>
+              <p className="text-[11px] text-ink-50 truncate">
                 e.g., {col.sampleValues.slice(0, 2).join(', ') || 'empty'}
               </p>
             </div>
 
-            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            <ArrowRight className="w-4 h-4 text-ink-50 shrink-0" />
 
             {/* Target field */}
             <select
               value={mapping[col.label] || 'ignore'}
               onChange={(e) => updateMapping(col.label, e.target.value)}
-              className="flex-1 bg-card border border-border/50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="flex-1 bg-cream-50 rounded-input px-3 py-2 text-sm text-ink-300 focus:outline-none focus:ring-2 focus:ring-soft-lavender/50"
             >
               <optgroup label="Core Fields">
                 {uniqueTargets.filter(t => t.group === 'core' || t.group === 'other').map(t => (
@@ -113,12 +114,12 @@ const ColumnMapper: React.FC<Props> = ({ columns, previewRows, totalRows, onConf
       {/* Preview */}
       {previewRows.length > 0 && (
         <div className="overflow-x-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Preview (first 3 rows)</p>
-          <table className="w-full text-xs">
+          <p className="text-xs font-bold uppercase tracking-widest text-ink-50 mb-2">Preview (first 3 rows)</p>
+          <table className="w-full text-[12px]">
             <thead>
-              <tr className="border-b border-border/30">
+              <tr className="border-b border-cream-200">
                 {columns.map(c => (
-                  <th key={c.label} className="text-left px-3 py-2 text-muted-foreground font-bold">
+                  <th key={c.label} className="text-left px-3 py-2 text-ink-50 font-bold">
                     {c.label}
                   </th>
                 ))}
@@ -126,9 +127,9 @@ const ColumnMapper: React.FC<Props> = ({ columns, previewRows, totalRows, onConf
             </thead>
             <tbody>
               {previewRows.slice(0, 3).map((row, i) => (
-                <tr key={i} className="border-b border-border/10">
+                <tr key={i} className={i % 2 === 0 ? 'bg-cream-100' : 'bg-cream-50'}>
                   {columns.map(c => (
-                    <td key={c.label} className="px-3 py-2 truncate max-w-[150px]">
+                    <td key={c.label} className="px-3 py-2 text-ink-200 truncate max-w-[150px]">
                       {row[c.label] !== null && row[c.label] !== undefined ? String(row[c.label]) : '-'}
                     </td>
                   ))}
@@ -140,26 +141,27 @@ const ColumnMapper: React.FC<Props> = ({ columns, previewRows, totalRows, onConf
       )}
 
       {error && (
-        <div className="text-red-400 text-sm flex items-center gap-2 bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+        <div className="text-soft-rose text-sm flex items-center gap-2 bg-pastel-rose/40 p-3 rounded-xl">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
       {/* Confirm */}
-      <div className="flex items-center justify-between pt-4 border-t border-border/30">
+      <div className="flex items-center justify-between pt-4 border-t border-cream-200">
         {!hasItemName && (
-          <p className="text-sm text-red-400 flex items-center gap-1">
+          <p className="text-sm text-soft-rose flex items-center gap-1">
             <AlertCircle className="w-4 h-4" /> Map at least one column to "Item Name"
           </p>
         )}
         <div className="ml-auto">
-          <button
+          <Button
+            variant="primary"
+            size="lg"
             onClick={() => onConfirm(mapping, previewRows)}
             disabled={!hasItemName}
-            className="bg-primary hover:bg-primary/90 text-white font-bold px-8 py-3 rounded-2xl transition-all shadow-lg shadow-primary/20 disabled:opacity-40"
           >
             Import {totalRows} Items
-          </button>
+          </Button>
         </div>
       </div>
     </div>

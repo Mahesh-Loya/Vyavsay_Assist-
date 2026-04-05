@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Search, 
-  MoreVertical, 
+import { cn } from '../lib/utils';
+import { useIsMobile } from '../hooks/useMediaQuery';
+import {
+  Search,
   Send,
   Bot,
   Hash,
   MessageSquare,
   Pause,
-  Play
+  Play,
+  ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+const PASTEL_COLORS = [
+  { bg: 'bg-pastel-sage', text: 'text-soft-sage' },
+  { bg: 'bg-pastel-rose', text: 'text-soft-rose' },
+  { bg: 'bg-pastel-honey', text: 'text-soft-honey' },
+  { bg: 'bg-pastel-sky', text: 'text-soft-sky' },
+  { bg: 'bg-pastel-lavender', text: 'text-soft-lavender' },
+  { bg: 'bg-pastel-mint', text: 'text-soft-mint' },
+];
+
+function getAvatarColor(index: number) {
+  return PASTEL_COLORS[index % PASTEL_COLORS.length];
 }
 
 const Conversations: React.FC = () => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (user) fetchConversations();
@@ -75,14 +86,14 @@ const Conversations: React.FC = () => {
       await client.post(`/conversations/${selectedConvo.id}/messages`, {
         content: replyText,
       });
-      
+
       const newMessage = {
         id: Math.random().toString(),
         sender: 'business_owner',
         content: replyText,
         created_at: new Date().toISOString()
       };
-      
+
       setMessages([...messages, newMessage]);
       setReplyText('');
     } catch (err) {
@@ -90,211 +101,275 @@ const Conversations: React.FC = () => {
     }
   };
 
+  const handleSelectConvo = (convo: any) => {
+    setSelectedConvo(convo);
+    if (isMobile) setShowChat(true);
+  };
+
+  const handleBack = () => {
+    setShowChat(false);
+  };
+
+  /* ---------- Loading ---------- */
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
-        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-        <p className="text-muted-foreground font-medium animate-pulse">Syncing chats...</p>
+        <div className="w-12 h-12 border-4 border-cream-200 border-t-soft-honey rounded-full animate-spin" />
+        <p className="text-ink-50 font-medium animate-pulse">Loading chats...</p>
       </div>
     );
   }
 
-  return (
-    <div className="h-[calc(100vh-8rem)] flex gap-6 overflow-hidden font-outfit">
-      {/* Sidebar List */}
-      <div className="w-96 flex flex-col gap-4">
-        <div className="flex items-center gap-4 px-2">
-          <h1 className="text-3xl font-bold tracking-tight">Chats</h1>
-          <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full">{conversations.length}</span>
-        </div>
-        
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <input 
-            type="text" 
-            placeholder="Search conversations..." 
-            className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
-          />
-        </div>
+  /* ---------- Conversation List ---------- */
+  const conversationList = (
+    <div className={cn(
+      "flex flex-col gap-4",
+      isMobile ? "w-full h-full" : "w-96"
+    )}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-2">
+        <h1 className="font-display text-[22px] font-bold text-ink-400">Chats</h1>
+        <span className="bg-pastel-lavender text-soft-lavender text-xs font-bold px-2.5 py-0.5 rounded-full">
+          {conversations.length}
+        </span>
+      </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-          {conversations.map((convo) => (
+      {/* Search */}
+      <div className="relative group">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-50 group-focus-within:text-ink-200 transition-colors" />
+        <input
+          type="text"
+          placeholder="Search conversations..."
+          className="w-full bg-cream-200/60 rounded-2xl h-11 pl-11 pr-4 text-sm text-ink-300 placeholder:text-ink-50 focus:outline-none focus:ring-2 focus:ring-pastel-lavender transition-all"
+        />
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-1.5">
+        {conversations.map((convo, idx) => {
+          const avatar = getAvatarColor(idx);
+          return (
             <button
               key={convo.id}
-              onClick={() => setSelectedConvo(convo)}
+              onClick={() => handleSelectConvo(convo)}
               className={cn(
-                "w-full text-left p-4 rounded-2xl border transition-all duration-200 group relative overflow-hidden",
-                selectedConvo?.id === convo.id 
-                  ? "bg-primary/5 border-primary/30 shadow-md" 
-                  : "bg-card/40 border-border hover:bg-card hover:border-border/80 shadow-sm"
+                "w-full text-left p-3.5 rounded-2xl transition-all duration-200 relative",
+                selectedConvo?.id === convo.id
+                  ? "bg-pastel-peach/30"
+                  : "hover:bg-cream-100"
               )}
             >
               {selectedConvo?.id === convo.id && (
-                <motion.div 
+                <motion.div
                   layoutId="active-chat-indicator"
-                  className="absolute left-0 top-0 bottom-0 w-1 bg-primary"
+                  className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-soft-peach"
                 />
               )}
-              <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-slate-800 to-slate-900 flex items-center justify-center text-xl font-bold border border-border group-hover:border-primary/30 transition-colors shadow-inner">
+              <div className="flex gap-3">
+                {/* Avatar */}
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-lg shrink-0",
+                  avatar.bg, avatar.text
+                )}>
                   {convo.customer_name?.[0] || '?'}
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
+
+                <div className="flex-1 min-w-0 space-y-0.5">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold truncate text-foreground group-hover:text-primary transition-colors">
+                    <h3 className="text-[14px] font-semibold text-ink-300 truncate">
                       {convo.customer_name || 'Unknown'}
                     </h3>
-                    <span className="text-[10px] text-muted-foreground font-medium">
+                    <span className="text-[11px] text-ink-50">
                       {new Date(convo.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate leading-relaxed">
+                  <p className="text-[12px] text-ink-50 truncate">
                     {convo.summary || 'Detecting intent...'}
                   </p>
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between pt-0.5">
+                    <div className="flex items-center gap-1.5">
                       <span className={cn(
-                        "text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider shadow-sm",
-                        convo.wb_leads?.[0]?.score === 'high' ? "bg-red-500/10 text-red-500 border border-red-500/20" :
-                        convo.wb_leads?.[0]?.score === 'medium' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
-                        "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                        "text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide",
+                        convo.wb_leads?.[0]?.score === 'high'
+                          ? "bg-pastel-rose text-soft-rose"
+                          : convo.wb_leads?.[0]?.score === 'medium'
+                            ? "bg-pastel-honey text-soft-honey"
+                            : "bg-pastel-sky text-soft-sky"
                       )}>
                         {convo.wb_leads?.[0]?.score || 'new'}
                       </span>
                       {convo.ai_paused && (
-                         <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
-                           <Pause className="w-2.5 h-2.5" /> Paused
-                         </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-pastel-honey text-soft-honey flex items-center gap-0.5">
+                          <Pause className="w-2.5 h-2.5" /> Paused
+                        </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground/60 flex items-center gap-1 font-medium">
+                    <span className="text-[10px] text-ink-50 flex items-center gap-0.5">
                       <Hash className="w-2.5 h-2.5" /> {convo.customer_jid.split('@')[0]}
                     </span>
                   </div>
                 </div>
               </div>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
+    </div>
+  );
 
-      {/* Main Chat View */}
-      <div className="flex-1 glass rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative border border-white/5">
-        <AnimatePresence mode="wait">
-          {selectedConvo ? (
-            <motion.div 
-              key="chat-active"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              className="flex flex-col h-full bg-slate-950/20"
-            >
-              {/* Chat Header */}
-              <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-card/10 backdrop-blur-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary to-blue-400 border border-white/10 flex items-center justify-center font-bold text-white shadow-lg">
-                    {selectedConvo.customer_name?.[0] || '?'}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold leading-none mb-1.5">{selectedConvo.customer_name}</h2>
-                    <p className="text-xs text-muted-foreground flex items-center gap-2 font-medium">
-                      <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", selectedConvo.ai_paused ? "bg-amber-500" : "bg-green-500")} /> 
-                      {selectedConvo.ai_paused ? 'Human Takeover Mode' : 'AI Active via Baileys'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => togglePause(selectedConvo.id, selectedConvo.ai_paused)}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border shadow-sm group",
-                      selectedConvo.ai_paused 
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20" 
-                        : "bg-green-500/10 border-green-500/30 text-green-500 hover:bg-green-500/20"
-                    )}
+  /* ---------- Chat View ---------- */
+  const selectedIndex = conversations.findIndex(c => c.id === selectedConvo?.id);
+  const chatAvatar = selectedIndex >= 0 ? getAvatarColor(selectedIndex) : PASTEL_COLORS[0];
+
+  const chatView = (
+    <div className={cn(
+      "flex flex-col overflow-hidden bg-cream-50 rounded-2xl border border-cream-200",
+      isMobile ? "w-full h-full" : "flex-1"
+    )}>
+      <AnimatePresence mode="wait">
+        {selectedConvo ? (
+          <motion.div
+            key="chat-active"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="flex flex-col h-full"
+          >
+            {/* Chat Header */}
+            <div className="px-5 py-4 border-b border-cream-200 flex items-center justify-between bg-cream-50">
+              <div className="flex items-center gap-3">
+                {isMobile && (
+                  <button
+                    onClick={handleBack}
+                    className="p-2 -ml-2 rounded-xl hover:bg-cream-100 transition-colors text-ink-200"
                   >
-                    {selectedConvo.ai_paused ? <><Play className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" /> Resume AI</> : <><Pause className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" /> Pause AI</>}
+                    <ArrowLeft className="w-5 h-5" />
                   </button>
-                  <button className="p-2.5 hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/10 text-muted-foreground"><MoreVertical className="w-5 h-5" /></button>
+                )}
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm",
+                  chatAvatar.bg, chatAvatar.text
+                )}>
+                  {selectedConvo.customer_name?.[0] || '?'}
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-bold text-ink-300 leading-tight">
+                    {selectedConvo.customer_name}
+                  </h2>
+                  <p className="text-[12px] text-ink-50 flex items-center gap-1.5">
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      selectedConvo.ai_paused ? "bg-soft-honey" : "bg-success"
+                    )} />
+                    {selectedConvo.ai_paused ? 'AI Paused' : 'AI Active'}
+                  </p>
                 </div>
               </div>
+              <button
+                onClick={() => togglePause(selectedConvo.id, selectedConvo.ai_paused)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all",
+                  selectedConvo.ai_paused
+                    ? "bg-pastel-honey/60 text-soft-honey hover:bg-pastel-honey"
+                    : "bg-pastel-sage/60 text-soft-sage hover:bg-pastel-sage"
+                )}
+              >
+                {selectedConvo.ai_paused
+                  ? <><Play className="w-3.5 h-3.5" /> Resume AI</>
+                  : <><Pause className="w-3.5 h-3.5" /> Pause AI</>
+                }
+              </button>
+            </div>
 
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth custom-scrollbar">
-                {messages.map((msg) => (
-                  <div 
-                    key={msg.id}
-                    className={cn(
-                      "flex flex-col",
-                      msg.sender === 'customer' ? "items-start" : "items-end"
-                    )}
-                  >
-                    <div className={cn(
-                      "max-w-[70%] p-5 rounded-2xl text-sm leading-relaxed shadow-lg relative group transition-all",
-                      msg.sender === 'customer' 
-                        ? "bg-muted/40 text-foreground border border-white/5 rounded-tl-none hover:bg-muted/60" 
-                        : "bg-primary text-primary-foreground rounded-tr-none shadow-primary/20 hover:scale-[1.01]"
-                    )}>
-                      {msg.content}
-                      <span className={cn(
-                        "text-[10px] block mt-3 opacity-60 font-medium tracking-tight",
-                        msg.sender === 'customer' ? "text-right" : "text-left"
-                      )}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "flex flex-col",
+                    msg.sender === 'customer' ? "items-start" : "items-end"
+                  )}
+                >
+                  <div className={cn(
+                    "max-w-[75%] p-3.5 text-sm leading-relaxed text-ink-300",
+                    msg.sender === 'customer'
+                      ? "bg-cream-100 rounded-2xl rounded-tl-sm"
+                      : "bg-pastel-sage/50 rounded-2xl rounded-tr-sm"
+                  )}>
+                    {msg.content}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 px-1">
                     {(msg.sender === 'ai' || msg.sender === 'business_owner') && (
                       <span className={cn(
-                        "text-[10px] font-bold mt-2 flex items-center gap-1.5 uppercase tracking-widest px-1",
-                        msg.sender === 'ai' ? "text-primary" : "text-muted-foreground"
+                        "text-[10px] flex items-center gap-1",
+                        msg.sender === 'ai' ? "text-soft-sage" : "text-ink-50"
                       )}>
-                        {msg.sender === 'ai' ? <><Bot className="w-3.5 h-3.5" /> AI Autoreply</> : "Manual Reply"}
+                        {msg.sender === 'ai' ? <><Bot className="w-3 h-3" /> AI Reply</> : "You"}
                       </span>
                     )}
+                    <span className="text-[10px] text-ink-50">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
 
-              {/* Chat Input */}
-              <form 
-                onSubmit={handleSendMessage}
-                className="p-8 bg-card/20 backdrop-blur-2xl border-t border-white/5 flex items-center gap-4"
-              >
-                <input 
-                  type="text" 
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Type a manual response here..."
-                  className="flex-1 bg-muted/40 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all font-medium text-sm placeholder:text-muted-foreground/50 shadow-inner"
-                />
-                <button 
-                  type="submit"
-                  disabled={!replyText.trim()}
-                  className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-2xl shadow-primary/40 group/send"
-                >
-                  <Send className="w-6 h-6 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </button>
-              </form>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="chat-empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-8"
+            {/* Compose Bar */}
+            <form
+              onSubmit={handleSendMessage}
+              className="bg-cream-50 border-t border-cream-200 p-3 flex gap-2"
             >
-              <div className="w-32 h-32 bg-card border border-white/5 rounded-[2.5rem] flex items-center justify-center shadow-2xl relative">
-                <div className="absolute inset-0 bg-primary/10 rounded-[2.5rem] blur-2xl animate-pulse" />
-                <MessageSquare className="w-16 h-16 text-muted-foreground/20 relative z-10" />
-              </div>
-              <div className="max-w-sm space-y-3">
-                <h3 className="text-3xl font-bold tracking-tight">Select a Lead</h3>
-                <p className="text-muted-foreground text-lg leading-relaxed font-medium">Pick a conversation from the left to view their intent summary and take manual control if needed.</p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <input
+                type="text"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 bg-cream-100 rounded-2xl px-4 py-3 text-sm text-ink-300 placeholder:text-ink-50 focus:outline-none focus:ring-2 focus:ring-pastel-lavender/60 transition-all"
+              />
+              <button
+                type="submit"
+                disabled={!replyText.trim()}
+                className="w-11 h-11 bg-ink-300 rounded-full flex items-center justify-center text-cream-50 hover:bg-ink-400 transition-colors disabled:opacity-40 shrink-0"
+              >
+                <Send className="w-4.5 h-4.5" />
+              </button>
+            </form>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="chat-empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-5"
+          >
+            <div className="w-24 h-24 bg-pastel-lilac rounded-full flex items-center justify-center">
+              <MessageSquare className="w-10 h-10 text-soft-lavender" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-display text-lg font-bold text-ink-300">Select a conversation</h3>
+              <p className="text-sm text-ink-50">Pick a chat from the left to start.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  /* ---------- Render ---------- */
+  if (isMobile) {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+        {showChat && selectedConvo ? chatView : conversationList}
       </div>
+    );
+  }
+
+  return (
+    <div className="h-[calc(100vh-4rem)] flex gap-4 overflow-hidden">
+      {conversationList}
+      {chatView}
     </div>
   );
 };

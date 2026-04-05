@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Zap, 
-  Shield, 
-  Database, 
-  Phone, 
+import {
+  Zap,
+  Shield,
+  Database,
+  Phone,
   Globe,
   Monitor,
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
+
+const pastelCycle = [
+  'bg-pastel-lavender',
+  'bg-pastel-honey',
+  'bg-pastel-sage',
+  'bg-pastel-sky',
+  'bg-pastel-peach',
+  'bg-pastel-rose',
+];
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -59,17 +70,24 @@ const Settings: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full animate-pulse">Loading settings...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex items-center gap-3 text-ink-50">
+        <div className="w-5 h-5 border-2 border-cream-200 border-t-ink-100 rounded-full animate-spin" />
+        <span className="text-sm">Loading settings...</span>
+      </div>
+    </div>
+  );
 
   const settingsGroups = [
     {
       title: 'AI configuration',
       items: [
-        { 
-          icon: Zap, 
-          label: 'Auto-Reply Mode', 
-          description: 'AI automatically handles greetings and FAQs', 
-          value: profile?.auto_reply_enabled ? 'Enabled' : 'Disabled', 
+        {
+          icon: Zap,
+          label: 'Auto-Reply Mode',
+          description: 'AI automatically handles greetings and FAQs',
+          value: profile?.auto_reply_enabled ? 'Enabled' : 'Disabled',
           active: profile?.auto_reply_enabled,
           onClick: toggleAutoReply
         },
@@ -87,78 +105,81 @@ const Settings: React.FC = () => {
     }
   ];
 
+  let globalItemIdx = 0;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-12 py-6 font-outfit">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-black">Preferences</h1>
-        <p className="text-muted-foreground text-lg">Configure your AI agent behavior and business identity.</p>
+    <div className="px-5 pt-4 pb-6 lg:px-8 lg:pt-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="font-display text-[22px] font-bold text-ink-400">Settings</h1>
+        <p className="text-[13px] text-ink-50">Configure your AI agent behavior and business identity.</p>
       </div>
 
-      <div className="space-y-10">
+      <div className="space-y-8">
         {/* Business Profile Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
         >
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-2">Business Profile</h3>
-          <div className="bg-card border border-border rounded-[2rem] p-8 shadow-2xl space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Business Name</label>
-                <input 
-                  type="text" 
-                  value={profile?.business_name || ''} 
-                  onChange={(e) => setProfile({ ...profile, business_name: e.target.value })}
-                  placeholder="e.g. VyavsayAssist"
-                  className="w-full bg-muted/30 border border-border rounded-2xl p-4 focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Industry</label>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-ink-100 mb-3">Business Profile</h3>
+          <div className="bg-cream-100/60 rounded-[20px] p-5 lg:p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Business Name"
+                color="honey"
+                value={profile?.business_name || ''}
+                onChange={(e) => setProfile({ ...profile, business_name: e.target.value })}
+                placeholder="e.g. VyavsayAssist"
+              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-ink-100 uppercase tracking-wider">
+                  Industry
+                </label>
                 <select
                   value={profile?.industry || 'generic'}
                   onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
-                  className="w-full bg-muted/30 border border-border rounded-2xl p-4 focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                  className="w-full bg-pastel-lavender/40 rounded-input h-[54px] px-4 text-sm text-ink-300 outline-none border-0 transition-all duration-150 focus:ring-2 focus:ring-ink-200/30"
                 >
                   <option value="generic">General Business</option>
                   <option value="used_cars">Used Car Dealer</option>
                 </select>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Services Offered (comma separated)</label>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-ink-100 uppercase tracking-wider">
+                Services Offered (comma separated)
+              </label>
               <textarea
                 value={Array.isArray(profile?.services) ? profile.services.join(', ') : profile?.services || ''}
                 onChange={(e) => setProfile({ ...profile, services: e.target.value.split(',').map((s: string) => s.trim()) })}
                 placeholder="e.g. Solar Installation, Maintenance, Consultation"
-                className="w-full bg-muted/30 border border-border rounded-2xl p-4 h-32 focus:ring-2 focus:ring-primary/50 outline-none transition-all resize-none"
+                className="w-full bg-pastel-sage/40 rounded-input p-4 h-32 text-sm text-ink-300 placeholder:text-ink-50 outline-none border-0 transition-all duration-150 focus:ring-2 focus:ring-ink-200/30 resize-none"
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Business Address</label>
-                <input
-                  type="text"
-                  value={profile?.business_address || ''}
-                  onChange={(e) => setProfile({ ...profile, business_address: e.target.value })}
-                  placeholder="e.g. 123 MG Road, Pune, Maharashtra 411001"
-                  className="w-full bg-muted/30 border border-border rounded-2xl p-4 focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Google Maps Link</label>
-                <input
-                  type="text"
-                  value={profile?.google_maps_link || ''}
-                  onChange={(e) => setProfile({ ...profile, google_maps_link: e.target.value })}
-                  placeholder="e.g. https://maps.google.com/..."
-                  className="w-full bg-muted/30 border border-border rounded-2xl p-4 focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                />
-              </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Business Address"
+                color="sky"
+                value={profile?.business_address || ''}
+                onChange={(e) => setProfile({ ...profile, business_address: e.target.value })}
+                placeholder="e.g. 123 MG Road, Pune, Maharashtra 411001"
+              />
+              <Input
+                label="Google Maps Link"
+                color="cream"
+                value={profile?.google_maps_link || ''}
+                onChange={(e) => setProfile({ ...profile, google_maps_link: e.target.value })}
+                placeholder="e.g. https://maps.google.com/..."
+              />
             </div>
-            <div className="flex justify-end">
-              <button
+
+            <div className="flex justify-end pt-1">
+              <Button
+                variant="primary"
+                size="md"
+                loading={saving}
                 disabled={saving}
                 onClick={async () => {
                   setSaving(true);
@@ -182,63 +203,74 @@ const Settings: React.FC = () => {
                     setSaving(false);
                   }
                 }}
-                className="bg-primary hover:bg-primary/90 text-white font-bold px-8 py-3 rounded-2xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Update Profile'}
-              </button>
+              </Button>
             </div>
           </div>
         </motion.div>
 
+        {/* Settings Groups */}
         {settingsGroups.map((group, i) => (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: (i + 1) * 0.1 }}
-            key={group.title} 
-            className="space-y-4"
+            key={group.title}
           >
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-2">{group.title}</h3>
-            <div className="bg-card border border-border rounded-[2rem] overflow-hidden shadow-2xl">
-              {group.items.map((item, idx) => (
-                <button 
-                  key={item.label}
-                  disabled={saving}
-                  onClick={item.onClick}
-                  className={`w-full flex items-center gap-6 p-8 text-left hover:bg-muted/30 transition-all group relative ${idx !== group.items.length - 1 ? 'border-b border-border' : ''} ${saving ? 'opacity-50' : ''}`}
-                >
-                  <div className={`p-4 rounded-2xl bg-muted/50 border border-border group-hover:border-primary/40 group-hover:bg-primary/5 transition-all`}>
-                    <item.icon className={`w-6 h-6 ${item.active ? 'text-primary' : 'text-muted-foreground'}`} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h4 className="text-lg font-semibold">{item.label}</h4>
-                      {item.active && <span className="w-1.5 h-1.5 rounded-full bg-whatsapp shadow-[0_0_8px_rgba(37,211,102,0.8)]" />}
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-ink-100 mb-3">{group.title}</h3>
+            <div className="bg-cream-100/60 rounded-[20px] overflow-hidden">
+              {group.items.map((item, idx) => {
+                const colorIdx = globalItemIdx % pastelCycle.length;
+                globalItemIdx++;
+                return (
+                  <button
+                    key={item.label}
+                    disabled={saving}
+                    onClick={item.onClick}
+                    className={`w-full flex items-center gap-4 p-4 lg:p-5 text-left hover:bg-cream-200/40 transition-all ${
+                      idx !== group.items.length - 1 ? 'border-b border-cream-200' : ''
+                    } ${saving ? 'opacity-50' : ''}`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${pastelCycle[colorIdx]} flex items-center justify-center flex-shrink-0`}>
+                      <item.icon className="w-5 h-5 text-ink-200" />
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
-                  </div>
-                  <div className="text-right flex items-center gap-4">
-                    <span className="text-xs font-bold text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full uppercase tracking-widest">{item.value}</span>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-1" />
-                  </div>
-                </button>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h4 className="text-[14px] font-semibold text-ink-300">{item.label}</h4>
+                        {item.active && <span className="w-1.5 h-1.5 rounded-full bg-success" />}
+                      </div>
+                      <p className="text-[12px] text-ink-50 leading-relaxed">{item.description}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="bg-cream-200 text-ink-50 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{item.value}</span>
+                      <ChevronRight className="w-4 h-4 text-ink-50" />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </motion.div>
         ))}
-      </div>
 
-      <div className="bg-red-500/5 border border-red-500/20 rounded-[2rem] p-8 flex items-center justify-between shadow-sm">
-        <div className="space-y-1">
-          <h4 className="text-red-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2"> Danger Zone <AlertCircle className="w-3.5 h-3.5" /></h4>
-          <p className="text-sm text-red-500/70 font-medium">Terminate all active Baileys sessions and wipe local connection cache.</p>
+        {/* Danger Zone */}
+        <div className="bg-pastel-rose/40 rounded-[20px] p-5 flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-soft-rose text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+              Danger Zone <AlertCircle className="w-3.5 h-3.5" />
+            </h4>
+            <p className="text-[12px] text-soft-rose/70">
+              Terminate all active Baileys sessions and wipe local connection cache.
+            </p>
+          </div>
+          <Button
+            variant="danger"
+            size="md"
+            onClick={resetSessions}
+          >
+            Reset All Sessions
+          </Button>
         </div>
-        <button 
-          onClick={resetSessions}
-          className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-6 py-3 rounded-2xl font-bold text-sm transition-all border border-red-500/20"
-        >
-          Reset All Sessions
-        </button>
       </div>
     </div>
   );

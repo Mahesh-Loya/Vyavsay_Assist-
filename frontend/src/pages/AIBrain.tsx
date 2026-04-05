@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import {
-  Brain,
   Package,
   BookOpen,
   Plus,
@@ -10,7 +9,6 @@ import {
   FileText,
   Sparkles,
   AlertCircle,
-  Loader2,
   Settings2,
   Upload,
   Download,
@@ -21,6 +19,8 @@ import InventoryTable from '../components/InventoryTable';
 import ItemModal from '../components/ItemModal';
 import SchemaManager from '../components/SchemaManager';
 import FileUpload from '../components/FileUpload';
+import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 
 type Tab = 'products' | 'knowledge';
 
@@ -167,65 +167,57 @@ const AIBrain: React.FC = () => {
     setShowItemModal(true);
   };
 
+  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
+    { key: 'products', label: 'Products', icon: <Package className="w-4 h-4" /> },
+    { key: 'knowledge', label: 'General Knowledge', icon: <BookOpen className="w-4 h-4" /> },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
+    <div className="px-5 pt-4 pb-6 lg:px-8 lg:pt-6 max-w-7xl mx-auto">
       {/* Header */}
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
-              <Brain className="w-6 h-6 text-primary" />
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight">AI Brain</h1>
-          </div>
-          <p className="text-muted-foreground text-lg italic">
-            "Everything your AI knows about your business"
+          <h1 className="font-display text-[22px] font-bold text-ink-400">AI Brain</h1>
+          <p className="text-ink-50 text-sm mt-0.5">
+            Everything your AI knows about your business
           </p>
         </div>
 
         {/* Stats pills */}
         {inventoryStats && activeTab === 'products' && (
-          <div className="flex gap-3">
-            <div className="bg-card border border-border/50 rounded-2xl px-5 py-3 text-center">
-              <p className="text-2xl font-bold text-primary">{inventoryStats.available}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Available</p>
+          <div className="flex gap-2">
+            <div className="bg-pastel-sage rounded-2xl px-4 py-2.5 text-center min-w-[72px]">
+              <p className="text-lg font-bold text-ink-300">{inventoryStats.available}</p>
+              <p className="text-[10px] text-ink-100 uppercase tracking-widest font-semibold">Available</p>
             </div>
-            <div className="bg-card border border-border/50 rounded-2xl px-5 py-3 text-center">
-              <p className="text-2xl font-bold text-red-400">{inventoryStats.sold}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Sold</p>
+            <div className="bg-pastel-rose rounded-2xl px-4 py-2.5 text-center min-w-[72px]">
+              <p className="text-lg font-bold text-ink-300">{inventoryStats.sold}</p>
+              <p className="text-[10px] text-ink-100 uppercase tracking-widest font-semibold">Sold</p>
             </div>
-            <div className="bg-card border border-border/50 rounded-2xl px-5 py-3 text-center">
-              <p className="text-2xl font-bold text-foreground">{inventoryStats.total}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Total</p>
+            <div className="bg-pastel-lavender rounded-2xl px-4 py-2.5 text-center min-w-[72px]">
+              <p className="text-lg font-bold text-ink-300">{inventoryStats.total}</p>
+              <p className="text-[10px] text-ink-100 uppercase tracking-widest font-semibold">Total</p>
             </div>
           </div>
         )}
       </header>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border/50 pb-1">
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-t-xl font-semibold transition-all ${
-            activeTab === 'products'
-              ? 'bg-primary/10 text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Package className="w-5 h-5" />
-          Products
-        </button>
-        <button
-          onClick={() => setActiveTab('knowledge')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-t-xl font-semibold transition-all ${
-            activeTab === 'knowledge'
-              ? 'bg-primary/10 text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <BookOpen className="w-5 h-5" />
-          General Knowledge
-        </button>
+      <div className="flex gap-1 bg-cream-200/60 rounded-full p-1 w-fit mb-6">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold transition-all rounded-full ${
+              activeTab === tab.key
+                ? 'bg-cream-50 shadow-sm text-ink-300'
+                : 'text-ink-50 hover:text-ink-200'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Products Tab */}
@@ -233,52 +225,57 @@ const AIBrain: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="space-y-5"
         >
           {/* Action bar */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => { setEditingItem(null); setShowItemModal(true); }}
-              className="bg-primary hover:bg-primary/90 text-white font-bold px-5 py-3 rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
             >
-              <Plus className="w-5 h-5" /> Add Item
-            </button>
-            <button
+              <Plus className="w-4 h-4 mr-1.5" /> Add Item
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowFileUpload(true)}
-              className="bg-card border border-border/50 hover:border-green-500/30 text-foreground font-semibold px-5 py-3 rounded-2xl transition-all flex items-center gap-2"
             >
-              <Upload className="w-5 h-5" /> Upload Excel/CSV
-            </button>
-            <button
+              <Upload className="w-4 h-4 mr-1.5" /> Upload Excel/CSV
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowSchemaManager(true)}
-              className="bg-card border border-border/50 hover:border-primary/30 text-foreground font-semibold px-5 py-3 rounded-2xl transition-all flex items-center gap-2"
             >
-              <Settings2 className="w-5 h-5" /> Manage Fields
-            </button>
+              <Settings2 className="w-4 h-4 mr-1.5" /> Manage Fields
+            </Button>
 
-            {/* Download buttons — pushed to right */}
+            {/* Download buttons -- pushed to right */}
             <div className="ml-auto flex items-center gap-2">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleDownload('all')}
-                className="bg-card border border-border/50 hover:border-blue-500/30 text-foreground font-semibold px-4 py-3 rounded-2xl transition-all flex items-center gap-2 text-sm"
               >
-                <Download className="w-4 h-4 text-blue-400" /> Download Inventory
-              </button>
-              <button
+                <Download className="w-4 h-4 mr-1.5" /> Download Inventory
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleDownload('sold')}
-                className="bg-card border border-border/50 hover:border-red-500/30 text-foreground font-semibold px-4 py-3 rounded-2xl transition-all flex items-center gap-2 text-sm"
               >
-                <FileDown className="w-4 h-4 text-red-400" /> Sold Report
-              </button>
+                <FileDown className="w-4 h-4 mr-1.5" /> Sold Report
+              </Button>
             </div>
           </div>
 
           {/* Info banner about Excel sync */}
-          <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 flex items-start gap-3">
-            <Upload className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+          <div className="bg-pastel-sky/30 rounded-[18px] p-4 flex items-start gap-3">
+            <Upload className="w-5 h-5 text-ink-100 shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-semibold text-blue-300">Excel Sync</p>
-              <p className="text-muted-foreground">
+              <p className="font-semibold text-ink-300">Excel Sync</p>
+              <p className="text-ink-50">
                 Upload your Excel to import inventory. Make changes here on the dashboard.
                 Download anytime to get the updated Excel with all changes.
                 Sold items are tracked with dates in the Sold Report.
@@ -288,18 +285,18 @@ const AIBrain: React.FC = () => {
 
           {/* Schema hint if empty */}
           {schema.fields.length === 0 && (
-            <div className="bg-card/50 border border-dashed border-primary/30 rounded-3xl p-8 text-center">
-              <Settings2 className="w-12 h-12 text-primary/40 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Set Up Your Inventory Fields</h3>
-              <p className="text-muted-foreground mb-4">
+            <div className="border border-dashed border-cream-200 rounded-[18px] p-8 text-center">
+              <Settings2 className="w-12 h-12 text-ink-50/40 mx-auto mb-4" />
+              <h3 className="font-display text-lg font-bold text-ink-300 mb-2">Set Up Your Inventory Fields</h3>
+              <p className="text-ink-50 text-sm mb-4">
                 Define what fields each item should have (e.g., Brand, Model, Year, Color, Fuel Type)
               </p>
-              <button
+              <Button
+                variant="primary"
                 onClick={() => setShowSchemaManager(true)}
-                className="bg-primary hover:bg-primary/90 text-white font-bold px-6 py-3 rounded-2xl transition-all"
               >
                 Configure Fields
-              </button>
+              </Button>
             </div>
           )}
 
@@ -320,54 +317,56 @@ const AIBrain: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-8"
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Add Knowledge Form */}
             <div className="lg:col-span-1">
-              <div className="bg-card border border-border/50 rounded-[2.5rem] p-8 sticky top-8 shadow-xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
-                    <Plus className="w-6 h-6 text-primary" />
+              <div className="bg-cream-100/60 rounded-[20px] p-6 sticky top-8">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-pastel-lavender rounded-xl flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-ink-200" />
                   </div>
-                  <h2 className="text-xl font-bold">Add Context</h2>
+                  <h2 className="font-display text-base font-bold text-ink-300">Add Context</h2>
                 </div>
-                <form onSubmit={handleAddKnowledge} className="space-y-6">
+                <form onSubmit={handleAddKnowledge} className="space-y-4">
                   <textarea
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
                     placeholder="Paste FAQs, business policies, working hours, EMI details, or any info your AI should know..."
-                    className="w-full h-64 bg-muted/30 border border-border/50 rounded-2xl p-6 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none text-sm leading-relaxed"
+                    className="w-full h-56 bg-pastel-lavender/40 border-none rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-ink-100/30 transition-all resize-none text-sm leading-relaxed text-ink-300 placeholder:text-ink-50"
                     required
                   />
                   {knowledgeError && (
-                    <div className="text-red-400 text-xs flex items-center gap-2 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                    <div className="text-error text-xs flex items-center gap-2 bg-error/10 p-3 rounded-xl">
                       <AlertCircle className="w-4 h-4" /> {knowledgeError}
                     </div>
                   )}
-                  <button
+                  <Button
                     type="submit"
+                    variant="primary"
+                    fullWidth
+                    loading={addingKnowledge}
                     disabled={addingKnowledge || !newContent.trim()}
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    {addingKnowledge ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> Sync to AI Brain</>}
-                  </button>
+                    {!addingKnowledge && <Sparkles className="w-4 h-4 mr-1.5" />}
+                    Sync to AI Brain
+                  </Button>
                 </form>
               </div>
             </div>
 
             {/* Knowledge List */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4">
               {knowledgeLoading ? (
                 Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="h-32 bg-card/50 border border-border/20 rounded-3xl animate-pulse" />
+                  <div key={i} className="h-28 bg-cream-200/40 rounded-[18px] animate-pulse" />
                 ))
               ) : knowledgeItems.length === 0 ? (
-                <div className="text-center py-20 bg-card/30 border border-dashed border-border rounded-[3rem]">
-                  <BookOpen className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Empty Library</h3>
-                  <p className="text-muted-foreground">Add your first business context to train the AI.</p>
-                </div>
+                <EmptyState
+                  icon={<BookOpen className="w-7 h-7" />}
+                  title="Empty Library"
+                  description="Add your first business context to train the AI."
+                />
               ) : (
                 <AnimatePresence mode="popLayout">
                   {knowledgeItems.map((item) => (
@@ -377,29 +376,28 @@ const AIBrain: React.FC = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.9 }}
-                      className="bg-card border border-border/50 rounded-3xl p-6 hover:border-primary/30 transition-all group relative overflow-hidden"
+                      className="bg-cream-100/80 rounded-[18px] p-4 group transition-all"
                     >
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl translate-x-16 -translate-y-16" />
-                      <div className="flex items-start justify-between relative z-10">
-                        <div className="flex gap-4">
-                          <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center shrink-0">
-                            <FileText className="w-6 h-6 text-muted-foreground" />
+                      <div className="flex items-start justify-between">
+                        <div className="flex gap-3">
+                          <div className="w-10 h-10 bg-pastel-lavender rounded-xl flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-ink-200" />
                           </div>
                           <div>
-                            <p className="text-sm leading-relaxed text-slate-300 mb-4 line-clamp-3 group-hover:line-clamp-none transition-all duration-500">
+                            <p className="text-sm leading-relaxed text-ink-200 mb-3 line-clamp-3 group-hover:line-clamp-none transition-all duration-500">
                               {item.content}
                             </p>
-                            <div className="flex items-center gap-4 text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                              <span className="flex items-center gap-1"><Sparkles className="w-3 h-3 text-primary" /> Vectorized</span>
+                            <div className="flex items-center gap-4 text-[10px] text-ink-50 uppercase tracking-widest font-semibold">
+                              <span className="flex items-center gap-1"><Sparkles className="w-3 h-3 text-ink-100" /> Vectorized</span>
                               <span>{new Date(item.created_at).toLocaleDateString()}</span>
                             </div>
                           </div>
                         </div>
                         <button
                           onClick={() => handleDeleteKnowledge(item.id)}
-                          className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2 text-ink-50 hover:text-error hover:bg-error/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </motion.div>

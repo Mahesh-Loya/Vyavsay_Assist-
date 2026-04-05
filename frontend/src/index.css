@@ -4,13 +4,12 @@
 
 @layer base {
   :root {
-    --background: 240 10% 4%;
-    --foreground: 210 40% 98%;
-    /* ... more variables if needed ... */
+    --background: 40 60% 98%;
+    --foreground: 30 6% 16%;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-cream-50 text-ink-300 font-sans antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -19,40 +18,36 @@
 }
 
 @layer components {
-  .glass {
-    @apply bg-card/60 backdrop-blur-md border border-border;
+  /* Pastel system utilities */
+  .card-press {
+    @apply transition-transform duration-150 active:scale-[0.98] cursor-pointer;
   }
 
-  .premium-card {
-    @apply bg-card border border-border rounded-2xl p-6 transition-all duration-300 hover:border-accent/40 hover:shadow-2xl hover:shadow-accent/5;
-  }
-
-  .btn-primary {
-    @apply bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
-  }
-
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-medium transition-all hover:bg-secondary/80 hover:scale-[1.02] active:scale-[0.98] border border-border;
-  }
-
-  .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/50;
-  }
-
-  .sidebar-link-active {
-    @apply bg-primary/10 text-primary hover:bg-primary/20;
+  .section-label {
+    @apply text-[11px] font-semibold text-ink-50 uppercase tracking-[0.08em];
   }
 }
 
-/* Custom scrollbar for dark theme */
+/* Scrollbar — light theme */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-background;
+  @apply bg-cream-50;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-border rounded-full hover:bg-muted;
+  @apply bg-cream-200 rounded-full hover:bg-ink-50/30;
+}
+
+/* Grain texture overlay */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }

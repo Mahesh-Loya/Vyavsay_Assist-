@@ -4,18 +4,12 @@ import client from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import {
   MessageSquare,
-  Users,
-  CheckSquare,
-  ArrowUpRight,
-  Clock,
-  Zap,
   Phone,
   QrCode,
   BookOpen,
-  Wifi,
   WifiOff,
-  CalendarDays,
   User,
+  ArrowRight,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -34,7 +28,7 @@ const Dashboard: React.FC = () => {
   const fetchAll = async () => {
     try {
       const { data: userProfile } = await client.get(`/users/${user?.id}`);
-      
+
       // Redirect to onboarding if profile is incomplete
       if (!userProfile.user?.business_name) {
         navigate('/onboarding');
@@ -57,7 +51,7 @@ const Dashboard: React.FC = () => {
         const lower = title.toLowerCase();
         return lower.includes('appointment') || lower.includes('test drive') ||
                lower.includes('meeting') || lower.includes('visit') ||
-               lower.includes('booking') || lower.includes('schedule') || title.includes('📅');
+               lower.includes('booking') || lower.includes('schedule') || title.includes('\u{1F4C5}');
       };
       const upcomingAppts = (tasksRes.data.tasks || [])
         .filter((t: any) => isAppt(t.title) && !t.is_completed && t.due_date && new Date(t.due_date) >= now)
@@ -84,136 +78,164 @@ const Dashboard: React.FC = () => {
   const connectedSessions = sessions.filter(s => s.status === 'connected');
   const isConnected = connectedSessions.length > 0;
 
+  /* Derive first name from email */
+  const firstName = user?.email
+    ? user.email.split('@')[0].replace(/[._-]/g, ' ').split(' ')[0].replace(/^\w/, (c: string) => c.toUpperCase())
+    : 'there';
+
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[80vh]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-          <p className="text-muted-foreground animate-pulse font-medium">Syncing dashboard...</p>
+          <div className="w-12 h-12 border-4 border-ink-50/30 border-t-ink-200 rounded-full animate-spin" />
+          <p className="text-ink-50 font-medium">Syncing dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto font-outfit">
-      <div className="flex items-end justify-between">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">Dashboard Overview</h1>
-          <p className="text-muted-foreground text-lg font-medium">
-            {isConnected 
-              ? 'Your AI Sales Agent is actively managing leads and chats.' 
-              : 'Connect your WhatsApp to start the AI Sales Engine.'}
-          </p>
+    <div className="px-5 pt-4 pb-6 lg:px-8 lg:pt-6 lg:pb-8 max-w-3xl mx-auto space-y-6">
+
+      {/* ── Greeting Header ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[13px] text-ink-50">{dateLabel}</p>
+          <h1 className="font-display text-[24px] font-bold text-ink-400 leading-tight">
+            Hi, {firstName}
+          </h1>
         </div>
-        <div className="flex gap-3">
-          <div className={`border px-4 py-2.5 rounded-xl flex items-center gap-3 shadow-sm ${isConnected ? 'bg-green-500/5 border-green-500/30' : 'bg-card border-border'}`}>
-            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className={`text-sm font-bold ${isConnected ? 'text-green-500' : 'text-red-400'}`}>
-              {isConnected ? 'WhatsApp Connected' : 'Not Connected'}
-            </span>
-          </div>
+        <div className="w-11 h-11 rounded-full bg-pastel-peach flex items-center justify-center shrink-0">
+          <span className="font-display font-bold text-soft-peach text-[16px]">
+            {firstName.charAt(0).toUpperCase()}
+          </span>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <motion.div 
+      {/* ── WhatsApp Status Inline ── */}
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-cream-200'}`} />
+        <span className={`text-[12px] font-medium ${isConnected ? 'text-soft-sage' : 'text-ink-50'}`}>
+          {isConnected ? 'WhatsApp Connected' : 'Not Connected'}
+        </span>
+      </div>
+
+      {/* ── Stat Cards ── */}
+      <motion.div
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4"
       >
-        <motion.div variants={item} className="bg-card border border-border/50 rounded-3xl p-6 group hover:border-primary/30 transition-all shadow-lg">
-          <div className="flex items-start justify-between mb-6">
-            <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
-              <MessageSquare className="w-6 h-6 text-primary" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Active Conversations</h3>
-            <p className="text-4xl font-extrabold leading-none">{stats?.totalConversations || 0}</p>
-          </div>
+        <motion.div variants={item} className="bg-pastel-lavender rounded-[20px] p-4 card-press">
+          <p className="font-display text-[28px] font-bold text-soft-lavender leading-none">
+            {stats?.totalConversations || 0}
+          </p>
+          <p className="text-[12px] text-soft-lavender/70 mt-1">Active Chats</p>
         </motion.div>
 
-        <motion.div variants={item} className="bg-card border border-border/50 rounded-3xl p-6 group hover:border-blue-500/30 transition-all shadow-lg">
-          <div className="flex items-start justify-between mb-6">
-            <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
-              <Users className="w-6 h-6 text-blue-500" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Potential Leads</h3>
-            <p className="text-4xl font-extrabold leading-none">{stats?.totalLeads || 0}</p>
-          </div>
+        <motion.div variants={item} className="bg-pastel-sage rounded-[20px] p-4 card-press">
+          <p className="font-display text-[28px] font-bold text-soft-sage leading-none">
+            {stats?.totalLeads || 0}
+          </p>
+          <p className="text-[12px] text-soft-sage/70 mt-1">Total Leads</p>
         </motion.div>
 
-        <motion.div variants={item} className="bg-card border border-border/50 rounded-3xl p-6 group hover:border-purple-500/30 transition-all shadow-lg">
-          <div className="flex items-start justify-between mb-6">
-            <div className="p-3 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-colors">
-              <Zap className="w-6 h-6 text-purple-500" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest">AI Auto-Replies</h3>
-            <p className="text-4xl font-extrabold leading-none">{stats?.aiMessagesCount || 0}</p>
-          </div>
+        <motion.div variants={item} className="bg-pastel-peach rounded-[20px] p-4 card-press">
+          <p className="font-display text-[28px] font-bold text-soft-peach leading-none">
+            {stats?.aiMessagesCount || 0}
+          </p>
+          <p className="text-[12px] text-soft-peach/70 mt-1">AI Replies</p>
         </motion.div>
 
-        <motion.div variants={item} className="bg-card border border-border/50 rounded-3xl p-6 group hover:border-amber-500/30 transition-all shadow-lg">
-          <div className="flex items-start justify-between mb-6">
-            <div className="p-3 bg-amber-500/10 rounded-xl group-hover:bg-amber-500/20 transition-colors">
-              <CheckSquare className="w-6 h-6 text-amber-500" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Extracted Tasks</h3>
-            <p className="text-4xl font-extrabold leading-none">{stats?.totalTasks || 0}</p>
-          </div>
+        <motion.div variants={item} className="bg-pastel-sky rounded-[20px] p-4 card-press">
+          <p className="font-display text-[28px] font-bold text-soft-sky leading-none">
+            {stats?.totalTasks || 0}
+          </p>
+          <p className="text-[12px] text-soft-sky/70 mt-1">Tasks</p>
         </motion.div>
       </motion.div>
 
-      {/* Upcoming Appointments */}
+      {/* ── Quick Actions ── */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="section-label mb-2">Quick actions</p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => navigate('/qr-scanner')}
+            className="flex items-center gap-2 bg-ink-300 text-cream-50 rounded-full h-11 px-5 font-semibold text-[13px] shrink-0 card-press"
+          >
+            <QrCode className="w-4 h-4" />
+            Link WhatsApp
+          </button>
+          <button
+            onClick={() => navigate('/ai-brain')}
+            className="flex items-center gap-2 bg-pastel-honey text-ink-200 rounded-full h-11 px-5 font-semibold text-[13px] shrink-0 card-press"
+          >
+            <BookOpen className="w-4 h-4" />
+            Train AI
+          </button>
+          <button
+            onClick={() => navigate('/conversations')}
+            className="flex items-center gap-2 bg-pastel-mint text-ink-200 rounded-full h-11 px-5 font-semibold text-[13px] shrink-0 card-press"
+          >
+            <MessageSquare className="w-4 h-4" />
+            View Chats
+          </button>
+        </div>
+      </motion.div>
+
+      {/* ── Upcoming Appointments ── */}
       {appointments.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-card border border-border/50 rounded-3xl p-8 shadow-lg"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <CalendarDays className="w-6 h-6 text-primary" />
-              <h2 className="text-xl font-bold">Upcoming Appointments</h2>
-            </div>
-            <button onClick={() => navigate('/appointments')} className="text-sm text-primary font-semibold hover:underline">
-              View All
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="section-label">Upcoming</p>
+            <button
+              onClick={() => navigate('/appointments')}
+              className="text-[12px] text-soft-lavender font-semibold flex items-center gap-1"
+            >
+              View all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-1">
             {appointments.map((appt: any) => {
               const apptDate = new Date(appt.due_date);
               const isToday = apptDate.toDateString() === new Date().toDateString();
-              const nameMatch = appt.title?.match(/Appointment:\s*(.+?)\s*[—–-]\s*/);
-              const serviceMatch = appt.title?.match(/[—–-]\s*(.+)$/);
+              const nameMatch = appt.title?.match(/Appointment:\s*(.+?)\s*[\u2014\u2013-]\s*/);
+              const serviceMatch = appt.title?.match(/[\u2014\u2013-]\s*(.+)$/);
               const customerName = nameMatch?.[1] || 'Customer';
               const service = serviceMatch?.[1] || 'Appointment';
+              const dayAbbr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][apptDate.getDay()];
+              const timeStr = apptDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
               return (
-                <div key={appt.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                  isToday ? 'bg-green-500/5 border-green-500/30' : 'bg-muted/20 border-border/30'
-                }`}>
-                  <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${
-                    isToday ? 'bg-green-500/20 text-green-400' : 'bg-muted/50 text-muted-foreground'
-                  }`}>
-                    <span className="text-[9px] font-bold uppercase">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][apptDate.getDay()]}</span>
-                    <span className="text-lg font-bold leading-none">{apptDate.getDate()}</span>
+                <div
+                  key={appt.id}
+                  className="flex items-center gap-3 rounded-2xl p-3 hover:bg-cream-100 transition-colors"
+                >
+                  {/* Date avatar */}
+                  <div className="w-10 h-10 rounded-full bg-pastel-sky flex flex-col items-center justify-center shrink-0">
+                    <span className="text-[9px] font-bold uppercase text-soft-sky leading-none">{dayAbbr}</span>
+                    <span className="text-[14px] font-bold text-soft-sky leading-none">{apptDate.getDate()}</span>
                   </div>
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{service}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <p className="text-[13px] font-semibold text-ink-300 truncate">{service}</p>
+                    <p className="text-[12px] text-ink-50 flex items-center gap-1">
                       <User className="w-3 h-3" /> {customerName}
-                      {isToday && <span className="ml-2 text-green-400 font-bold">TODAY</span>}
+                      {isToday && (
+                        <span className="ml-1.5 text-[10px] font-semibold bg-pastel-sage text-soft-sage rounded-full px-2 py-0.5">
+                          Today
+                        </span>
+                      )}
                     </p>
                   </div>
+
+                  {/* Time */}
+                  <span className="text-[11px] text-ink-50 shrink-0">{timeStr}</span>
                 </div>
               );
             })}
@@ -221,86 +243,50 @@ const Dashboard: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Quick Actions */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-card border border-border/50 rounded-3xl p-8 flex flex-col gap-6 shadow-lg"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Quick Actions</h2>
-            <ArrowUpRight className="text-muted-foreground w-5 h-5" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <button 
+      {/* ── Devices ── */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="section-label mb-2">Devices</p>
+        {sessions.length === 0 ? (
+          <div className="flex items-center justify-between rounded-2xl p-4 hover:bg-cream-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <WifiOff className="w-5 h-5 text-ink-50/40" />
+              <p className="text-[13px] text-ink-50">No devices linked</p>
+            </div>
+            <button
               onClick={() => navigate('/qr-scanner')}
-              className="flex flex-col items-center gap-4 p-6 bg-muted/30 border border-border/50 rounded-2xl hover:bg-muted/50 transition-all group"
+              className="text-[12px] text-soft-lavender font-semibold"
             >
-              <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
-                <QrCode className="w-6 h-6 text-primary" />
-              </div>
-              <span className="text-sm font-bold">Link WhatsApp</span>
-            </button>
-            <button 
-              onClick={() => navigate('/ai-brain')}
-              className="flex flex-col items-center gap-4 p-6 bg-muted/30 border border-border/50 rounded-2xl hover:bg-muted/50 transition-all group"
-            >
-              <div className="p-3 bg-green-500/10 rounded-full group-hover:scale-110 transition-transform">
-                <BookOpen className="w-6 h-6 text-green-500" />
-              </div>
-              <span className="text-sm font-bold">Train AI Brain</span>
+              Link now
             </button>
           </div>
-        </motion.div>
-
-        {/* Live Session Status */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-card border border-border/50 rounded-3xl p-8 shadow-lg"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">Connected Devices</h2>
-            <Clock className="text-muted-foreground w-5 h-5" />
-          </div>
-          <div className="space-y-4">
-            {sessions.length === 0 ? (
-              <div className="text-center py-10 space-y-4">
-                <WifiOff className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-                <div>
-                  <p className="font-bold text-lg">No devices linked</p>
-                  <p className="text-muted-foreground text-sm">Go to "Link WhatsApp" to connect your business number.</p>
+        ) : (
+          <div className="space-y-1">
+            {sessions.map((session, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-2xl p-3 hover:bg-cream-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-pastel-lavender flex items-center justify-center">
+                    <Phone className="w-4 h-4 text-soft-lavender" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-ink-300">
+                      {session.phone ? `+${session.phone}` : 'Pending...'}
+                    </p>
+                    <p className="text-[11px] text-ink-50">
+                      {session.connectedAt
+                        ? `Connected ${new Date(session.connectedAt).toLocaleDateString()}`
+                        : 'Awaiting QR scan'}
+                    </p>
+                  </div>
                 </div>
+                <div className={`w-2.5 h-2.5 rounded-full ${session.status === 'connected' ? 'bg-success' : 'bg-cream-200'}`} />
               </div>
-            ) : (
-              sessions.map((session, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-muted/30 border border-border/50 rounded-2xl text-sm">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${session.status === 'connected' ? 'bg-green-500/10' : 'bg-slate-500/10'}`}>
-                      <Phone className={`w-5 h-5 ${session.status === 'connected' ? 'text-green-500' : 'text-slate-500'}`} />
-                    </div>
-                    <div>
-                      <p className="font-bold">{session.phone ? `+${session.phone}` : 'Pending...'}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {session.connectedAt ? `Connected ${new Date(session.connectedAt).toLocaleDateString()}` : 'Awaiting QR scan'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {session.status === 'connected' ? (
-                      <span className="flex items-center gap-1.5 text-green-500 font-bold text-xs"><Wifi className="w-3.5 h-3.5" /> Active</span>
-                    ) : (
-                      <span className="text-muted-foreground font-medium text-xs">Offline</span>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+            ))}
           </div>
-        </motion.div>
-      </div>
+        )}
+      </motion.div>
     </div>
   );
 };

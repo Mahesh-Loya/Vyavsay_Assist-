@@ -2,22 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Sparkles, 
-  ArrowRight, 
-  Building2, 
-  Briefcase, 
-  ListChecks,
-  CheckCircle2
-} from 'lucide-react';
+import { ArrowRight, Building2, Briefcase } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 const Onboarding: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  
+
   const [profile, setProfile] = useState({
     business_name: '',
     industry: '',
@@ -43,114 +38,134 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  const steps = [
-    {
-      title: "Welcome to Vyavsay",
-      subtitle: "Let's personalize your AI sales assistant in 30 seconds.",
-      icon: Sparkles,
-      content: (
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="relative group">
-              <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="What is your Business Name?"
-                className="w-full bg-muted/30 border border-border/50 rounded-2xl py-4 pl-12 pr-6 focus:ring-2 focus:ring-primary/50 outline-none transition-all text-lg font-medium"
-                value={profile.business_name}
-                onChange={e => setProfile({...profile, business_name: e.target.value})}
-              />
-            </div>
-            <div className="relative group">
-              <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="What industry are you in? (e.g. Solar, Real Estate)"
-                className="w-full bg-muted/30 border border-border/50 rounded-2xl py-4 pl-12 pr-6 focus:ring-2 focus:ring-primary/50 outline-none transition-all text-lg"
-                value={profile.industry}
-                onChange={e => setProfile({...profile, industry: e.target.value})}
-              />
-            </div>
-          </div>
-          <button 
-            disabled={!profile.business_name || !profile.industry}
-            onClick={nextStep}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-5 rounded-3xl transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            Continue <ArrowRight className="w-5 h-5" />
-          </button>
-        </div>
-      )
-    },
-    {
-      title: "What do you sell?",
-      subtitle: "The AI uses this to answer customer pricing and service inquiries.",
-      icon: ListChecks,
-      content: (
-        <div className="space-y-6">
-          <textarea 
-            placeholder="List your products or services (comma separated)..."
-            className="w-full h-48 bg-muted/30 border border-border/50 rounded-3xl p-6 focus:ring-2 focus:ring-primary/50 outline-none transition-all text-lg resize-none"
-            value={servicesInput}
-            onChange={e => setServicesInput(e.target.value)}
-          />
-          <div className="flex gap-4">
-            <button 
-              onClick={() => setStep(1)}
-              className="flex-1 bg-muted/50 hover:bg-muted text-foreground font-bold py-5 rounded-3xl transition-all"
-            >
-              Back
-            </button>
-            <button 
-              disabled={!servicesInput.trim() || loading}
-              onClick={handleComplete}
-              className="flex-[2] bg-primary hover:bg-primary/90 text-white font-bold py-5 rounded-3xl transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {loading ? 'Setting up...' : 'Start using Vyavsay'} 
-              {!loading && <CheckCircle2 className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-      )
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 font-outfit relative overflow-hidden">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
-      </div>
+    <div className="min-h-screen bg-cream-50 flex flex-col items-center justify-center p-8 relative overflow-hidden">
+      {/* Soft pastel decorative blurs */}
+      <div className="absolute top-[-8%] right-[-5%] w-[35%] h-[35%] bg-pastel-lavender/40 rounded-full blur-[100px]" />
+      <div className="absolute bottom-[10%] left-[-8%] w-[30%] h-[30%] bg-pastel-honey/40 rounded-full blur-[100px]" />
 
       <div className="w-full max-w-xl relative z-10">
-        <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-2xl shadow-primary/10">
-            {React.createElement(steps[step - 1].icon, { className: "w-10 h-10 text-primary" })}
+        {/* Step indicator */}
+        <div className="mb-8">
+          <p className="text-[11px] font-semibold text-ink-50 uppercase tracking-[0.08em] mb-3">
+            Step {step} of 2
+          </p>
+          <div className="flex gap-1.5">
+            <div className="flex-1 h-1.5 rounded-full bg-ink-300" />
+            <div className={`flex-1 h-1.5 rounded-full ${step >= 2 ? 'bg-ink-300' : 'bg-cream-200'}`} />
           </div>
-          <h1 className="text-5xl font-black mb-4 tracking-tight">{steps[step - 1].title}</h1>
-          <p className="text-muted-foreground text-xl leading-relaxed">{steps[step - 1].subtitle}</p>
         </div>
 
-        <motion.div 
-          key={step}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          className="bg-card border border-border/50 rounded-[3.5rem] p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] backdrop-blur-xl"
-        >
-          {steps[step - 1].content}
-        </motion.div>
+        {/* Step content */}
+        {step === 1 && (
+          <motion.div
+            key={1}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="font-display text-[24px] font-bold text-ink-400">
+                Tell us about your business
+              </h1>
+              <p className="text-[15px] text-ink-50 mt-1.5">
+                We'll personalize your AI assistant.
+              </p>
+            </div>
 
-        {/* Progress Dots */}
-        <div className="flex justify-center gap-3 mt-12">
-          {steps.map((_, i) => (
-            <div 
-              key={i} 
-              className={`h-2 rounded-full transition-all duration-500 ${step === i + 1 ? 'w-12 bg-primary' : 'w-2 bg-muted'}`}
-            />
-          ))}
-        </div>
+            <div className="space-y-5">
+              <Input
+                label="Business Name"
+                color="honey"
+                icon={<Building2 className="w-[18px] h-[18px]" />}
+                value={profile.business_name}
+                onChange={(e) => setProfile({ ...profile, business_name: e.target.value })}
+                placeholder="Your business name"
+              />
+
+              <Input
+                label="Industry"
+                color="lavender"
+                icon={<Briefcase className="w-[18px] h-[18px]" />}
+                value={profile.industry}
+                onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
+                placeholder="e.g. Used Cars, Real Estate"
+              />
+            </div>
+
+            <div className="pt-1">
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                onClick={nextStep}
+                disabled={!profile.business_name || !profile.industry}
+              >
+                Continue
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 2 && (
+          <motion.div
+            key={2}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="font-display text-[24px] font-bold text-ink-400">
+                What do you sell?
+              </h1>
+              <p className="text-[15px] text-ink-50 mt-1.5">
+                Your AI uses this to answer customer enquiries.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-ink-100 uppercase tracking-wider">
+                Products & Services
+              </label>
+              <textarea
+                className="w-full h-40 bg-pastel-sage/40 rounded-input p-4 text-sm text-ink-300 placeholder:text-ink-50 focus:ring-2 focus:ring-ink-200/30 outline-none border-0 transition-all duration-150"
+                placeholder="List products/services, comma separated..."
+                value={servicesInput}
+                onChange={(e) => setServicesInput(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => setStep(1)}
+              >
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                size="lg"
+                className="flex-[2]"
+                loading={loading}
+                disabled={!servicesInput.trim() || loading}
+                onClick={handleComplete}
+              >
+                {loading ? 'Setting up...' : 'Start using Vyavsay'}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Decorative bottom color band */}
+      <div className="fixed bottom-0 left-0 right-0 flex">
+        <div className="flex-1 h-2 bg-pastel-peach" />
+        <div className="flex-1 h-2 bg-pastel-sage" />
+        <div className="flex-1 h-2 bg-pastel-lavender" />
+        <div className="flex-1 h-2 bg-pastel-sky" />
+        <div className="flex-1 h-2 bg-pastel-honey" />
       </div>
     </div>
   );
