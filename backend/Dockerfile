@@ -1,16 +1,27 @@
-FROM node:20-slim
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install all dependencies (including dev for tsc)
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy source and build
 COPY tsconfig.json ./
 COPY src/ ./src/
 COPY database/ ./database/
 RUN npm run build
+
+# Production stage
+FROM node:20-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/database ./database
 
 # Create auth sessions directory
 RUN mkdir -p /app/auth_sessions_v2
