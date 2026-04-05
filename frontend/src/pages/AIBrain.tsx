@@ -55,6 +55,15 @@ const AIBrain: React.FC = () => {
 
   // Refresh key to trigger InventoryTable reload
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  // Auto-dismiss error toast
+  useEffect(() => {
+    if (pageError) {
+      const timer = setTimeout(() => setPageError(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [pageError]);
 
   useEffect(() => {
     if (user) {
@@ -75,6 +84,7 @@ const AIBrain: React.FC = () => {
       setSchema(data.schema || { fields: [] });
     } catch (err) {
       console.error('Failed to fetch schema');
+      setPageError('Failed to load schema');
     }
   };
 
@@ -84,6 +94,7 @@ const AIBrain: React.FC = () => {
       setInventoryStats(data);
     } catch (err) {
       console.error('Failed to fetch inventory stats');
+      setPageError('Failed to load inventory stats');
     }
   };
 
@@ -91,9 +102,10 @@ const AIBrain: React.FC = () => {
     setKnowledgeLoading(true);
     try {
       const { data } = await client.get('/knowledge');
-      setKnowledgeItems(data);
+      setKnowledgeItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch knowledge');
+      setPageError('Failed to load knowledge items');
     } finally {
       setKnowledgeLoading(false);
     }
@@ -121,6 +133,8 @@ const AIBrain: React.FC = () => {
       setKnowledgeItems(knowledgeItems.filter(item => item.id !== id));
     } catch (err) {
       console.error('Failed to delete');
+      setPageError('Failed to delete knowledge item');
+      fetchKnowledge(); // Revert optimistic delete
     }
   };
 
@@ -131,6 +145,7 @@ const AIBrain: React.FC = () => {
       setShowSchemaManager(false);
     } catch (err) {
       console.error('Failed to save schema');
+      setPageError('Failed to save schema');
     }
   };
 
@@ -155,9 +170,9 @@ const AIBrain: React.FC = () => {
       document.body.removeChild(a);
     } catch (err: any) {
       if (err.response?.status === 404) {
-        alert(type === 'sold' ? 'No sold items to export.' : 'No items to export.');
+        setPageError(type === 'sold' ? 'No sold items to export.' : 'No items to export.');
       } else {
-        alert('Download failed. Please try again.');
+        setPageError('Download failed. Please try again.');
       }
     }
   };
@@ -185,15 +200,15 @@ const AIBrain: React.FC = () => {
         {inventoryStats && activeTab === 'products' && (
           <div className="flex gap-2 mt-3">
             <div className="flex-1 bg-pastel-sage rounded-[16px] px-3 py-2 text-center">
-              <p className="text-lg font-bold font-display text-soft-sage">{inventoryStats.available}</p>
+              <p className="text-lg font-bold font-display text-soft-sage">{inventoryStats?.available ?? 0}</p>
               <p className="text-[9px] text-soft-sage/70 uppercase tracking-widest font-semibold">Available</p>
             </div>
             <div className="flex-1 bg-pastel-rose rounded-[16px] px-3 py-2 text-center">
-              <p className="text-lg font-bold font-display text-soft-rose">{inventoryStats.sold}</p>
+              <p className="text-lg font-bold font-display text-soft-rose">{inventoryStats?.sold ?? 0}</p>
               <p className="text-[9px] text-soft-rose/70 uppercase tracking-widest font-semibold">Sold</p>
             </div>
             <div className="flex-1 bg-pastel-lavender rounded-[16px] px-3 py-2 text-center">
-              <p className="text-lg font-bold font-display text-soft-lavender">{inventoryStats.total}</p>
+              <p className="text-lg font-bold font-display text-soft-lavender">{inventoryStats?.total ?? 0}</p>
               <p className="text-[9px] text-soft-lavender/70 uppercase tracking-widest font-semibold">Total</p>
             </div>
           </div>
@@ -433,6 +448,14 @@ const AIBrain: React.FC = () => {
           onComplete={() => { setRefreshKey(prev => prev + 1); fetchInventoryStats(); fetchSchema(); }}
           onClose={() => setShowFileUpload(false)}
         />
+      )}
+
+      {/* Error Toast */}
+      {pageError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-soft-rose text-white px-5 py-3 rounded-2xl shadow-lg text-sm font-medium flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" />
+          {pageError}
+        </div>
       )}
     </div>
   );

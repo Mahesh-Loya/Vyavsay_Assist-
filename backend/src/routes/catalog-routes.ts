@@ -23,20 +23,30 @@ export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     const filters = validate(catalogQuery, request.query, reply);
     if (!filters) return;
 
-    const result = await catalog.listItems(userId, filters);
-    return reply.send({
-      items: result.items,
-      total: result.total,
-      page: filters.page,
-      limit: filters.limit,
-      totalPages: Math.ceil(result.total / filters.limit),
-    });
+    try {
+      const result = await catalog.listItems(userId, filters);
+      return reply.send({
+        items: result.items,
+        total: result.total,
+        page: filters.page,
+        limit: filters.limit,
+        totalPages: Math.ceil(result.total / filters.limit),
+      });
+    } catch (err: any) {
+      console.error('❌ GET /catalog error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Get inventory stats */
   server.get('/stats', async (request, reply) => {
-    const stats = await catalog.getStats(request.userId);
-    return reply.send(stats);
+    try {
+      const stats = await catalog.getStats(request.userId);
+      return reply.send(stats);
+    } catch (err: any) {
+      console.error('❌ GET /catalog/stats error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Upload product images to Supabase Storage and return public URLs */
@@ -66,121 +76,131 @@ export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance)
 
   /** Export inventory as Excel (.xlsx) — supports ?type=all|available|sold */
   server.get('/export', async (request, reply) => {
-    const userId = request.userId;
-    const { type: exportType } = request.query as { type?: string };
+    try {
+      const userId = request.userId;
+      const { type: exportType } = request.query as { type?: string };
 
-    // Fetch items based on export type
-    let query = server.supabase
-      .from('wb_catalog_items')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .order('item_name', { ascending: true });
-
-    if (exportType === 'sold') {
-      query = server.supabase
+      // Fetch items based on export type
+      let query = server.supabase
         .from('wb_catalog_items')
         .select('*')
         .eq('user_id', userId)
         .eq('is_active', true)
-        .lte('quantity', 0)
-        .order('updated_at', { ascending: false });
-    } else if (exportType === 'available') {
-      query = query.gt('quantity', 0);
-    }
+        .order('item_name', { ascending: true });
 
-    const { data: items } = await query;
+      if (exportType === 'sold') {
+        query = server.supabase
+          .from('wb_catalog_items')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .lte('quantity', 0)
+          .order('updated_at', { ascending: false });
+      } else if (exportType === 'available') {
+        query = query.gt('quantity', 0);
+      }
 
-    if (!items || items.length === 0) {
-      return reply.status(404).send({ error: 'No items to export' });
-    }
+      const { data: items } = await query;
 
-    // Fetch user's schema for column labels
-    const { data: userData } = await server.supabase
-      .from('wb_users')
-      .select('inventory_schema, business_name')
-      .eq('id', userId)
-      .single();
+      if (!items || items.length === 0) {
+        return reply.status(404).send({ error: 'No items to export' });
+      }
 
-    const schemaFields = userData?.inventory_schema?.fields || [];
-    const businessName = userData?.business_name || 'Inventory';
+      // Fetch user's schema for column labels
+      const { data: userData } = await server.supabase
+        .from('wb_users')
+        .select('inventory_schema, business_name')
+        .eq('id', userId)
+        .single();
 
-    // Build Excel workbook
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Vyavsay AI';
+      const schemaFields = userData?.inventory_schema?.fields || [];
+      const businessName = userData?.business_name || 'Inventory';
 
-    // Sheet 1: Inventory
-    const sheetName = exportType === 'sold' ? 'Sold Items' : 'Inventory';
-    const sheet = workbook.addWorksheet(sheetName);
+      // Build Excel workbook
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Vyavsay AI';
 
-    // Build columns
-    const columns: { header: string; key: string; width: number }[] = [
-      { header: 'Item Name', key: 'item_name', width: 30 },
-      { header: 'Category', key: 'category', width: 20 },
-      { header: 'Price', key: 'price', width: 15 },
-      { header: 'Quantity', key: 'quantity', width: 10 },
-    ];
+      // Sheet 1: Inventory
+      const sheetName = exportType === 'sold' ? 'Sold Items' : 'Inventory';
+      const sheet = workbook.addWorksheet(sheetName);
 
-    for (const field of schemaFields) {
-      columns.push({ header: field.label, key: `attr_${field.key}`, width: 18 });
-    }
-
-    columns.push({ header: 'Status', key: 'status', width: 12 });
-    columns.push({ header: 'Added On', key: 'created_at', width: 15 });
-    columns.push({ header: 'Last Updated', key: 'updated_at', width: 15 });
-
-    sheet.columns = columns;
-
-    // Style header row
-    const headerColor = exportType === 'sold' ? 'FFDC2626' : 'FF4F46E5';
-    sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
-
-    // Add data rows
-    for (const item of items) {
-      const row: Record<string, any> = {
-        item_name: item.item_name,
-        category: item.category || '',
-        price: item.price || '',
-        quantity: item.quantity,
-        status: item.quantity > 0 ? 'Available' : 'Sold',
-        created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : '',
-        updated_at: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '',
-      };
+      // Build columns
+      const columns: { header: string; key: string; width: number }[] = [
+        { header: 'Item Name', key: 'item_name', width: 30 },
+        { header: 'Category', key: 'category', width: 20 },
+        { header: 'Price', key: 'price', width: 15 },
+        { header: 'Quantity', key: 'quantity', width: 10 },
+      ];
 
       for (const field of schemaFields) {
-        row[`attr_${field.key}`] = item.attributes?.[field.key] ?? '';
+        columns.push({ header: field.label, key: `attr_${field.key}`, width: 18 });
       }
 
-      const addedRow = sheet.addRow(row);
+      columns.push({ header: 'Status', key: 'status', width: 12 });
+      columns.push({ header: 'Added On', key: 'created_at', width: 15 });
+      columns.push({ header: 'Last Updated', key: 'updated_at', width: 15 });
 
-      // Highlight sold rows in red
-      if (item.quantity <= 0) {
-        addedRow.eachCell((cell) => {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } };
-        });
+      sheet.columns = columns;
+
+      // Style header row
+      const headerColor = exportType === 'sold' ? 'FFDC2626' : 'FF4F46E5';
+      sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
+
+      // Add data rows
+      for (const item of items) {
+        const row: Record<string, any> = {
+          item_name: item.item_name,
+          category: item.category || '',
+          price: item.price || '',
+          quantity: item.quantity,
+          status: item.quantity > 0 ? 'Available' : 'Sold',
+          created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : '',
+          updated_at: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '',
+        };
+
+        for (const field of schemaFields) {
+          row[`attr_${field.key}`] = item.attributes?.[field.key] ?? '';
+        }
+
+        const addedRow = sheet.addRow(row);
+
+        // Highlight sold rows in red
+        if (item.quantity <= 0) {
+          addedRow.eachCell((cell) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } };
+          });
+        }
       }
+
+      // Auto-filter
+      sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` };
+
+      const filename = exportType === 'sold'
+        ? `${businessName}_sold_report_${new Date().toISOString().split('T')[0]}.xlsx`
+        : `${businessName}_inventory_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      reply.header('Content-Disposition', `attachment; filename=${filename}`);
+      return reply.send(Buffer.from(buffer as ArrayBuffer));
+    } catch (err: any) {
+      console.error('❌ GET /catalog/export error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
     }
-
-    // Auto-filter
-    sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` };
-
-    const filename = exportType === 'sold'
-      ? `${businessName}_sold_report_${new Date().toISOString().split('T')[0]}.xlsx`
-      : `${businessName}_inventory_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    reply.header('Content-Disposition', `attachment; filename=${filename}`);
-    return reply.send(Buffer.from(buffer as ArrayBuffer));
   });
 
   /** Get single catalog item */
   server.get('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const item = await catalog.getItem(request.userId, id);
-    if (!item) return reply.status(404).send({ error: 'Item not found' });
-    return reply.send({ item });
+    try {
+      const { id } = request.params as { id: string };
+      const item = await catalog.getItem(request.userId, id);
+      if (!item) return reply.status(404).send({ error: 'Item not found' });
+      return reply.send({ item });
+    } catch (err: any) {
+      console.error('❌ GET /catalog/:id error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Add a new catalog item */
@@ -188,9 +208,14 @@ export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     const body = validate(catalogItemCreate, request.body, reply);
     if (!body) return;
 
-    const item = await catalog.addItem(request.userId, body);
-    if (!item) return reply.status(500).send({ error: 'Failed to add item' });
-    return reply.status(201).send({ item });
+    try {
+      const item = await catalog.addItem(request.userId, body);
+      if (!item) return reply.status(500).send({ error: 'Failed to add item' });
+      return reply.status(201).send({ item });
+    } catch (err: any) {
+      console.error('❌ POST /catalog error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Update a catalog item */
@@ -199,25 +224,40 @@ export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     const updates = validate(catalogItemUpdate, request.body, reply);
     if (!updates) return;
 
-    const item = await catalog.updateItem(request.userId, id, updates);
-    if (!item) return reply.status(404).send({ error: 'Item not found or update failed' });
-    return reply.send({ item });
+    try {
+      const item = await catalog.updateItem(request.userId, id, updates);
+      if (!item) return reply.status(404).send({ error: 'Item not found or update failed' });
+      return reply.send({ item });
+    } catch (err: any) {
+      console.error('❌ PATCH /catalog/:id error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Quick mark as sold */
   server.patch('/:id/sold', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const item = await catalog.markSold(request.userId, id);
-    if (!item) return reply.status(404).send({ error: 'Item not found' });
-    return reply.send({ item });
+    try {
+      const { id } = request.params as { id: string };
+      const item = await catalog.markSold(request.userId, id);
+      if (!item) return reply.status(404).send({ error: 'Item not found' });
+      return reply.send({ item });
+    } catch (err: any) {
+      console.error('❌ PATCH /catalog/:id/sold error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Soft delete an item */
   server.delete('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const success = await catalog.deleteItem(request.userId, id);
-    if (!success) return reply.status(500).send({ error: 'Failed to delete item' });
-    return reply.send({ success: true });
+    try {
+      const { id } = request.params as { id: string };
+      const success = await catalog.deleteItem(request.userId, id);
+      if (!success) return reply.status(500).send({ error: 'Failed to delete item' });
+      return reply.send({ success: true });
+    } catch (err: any) {
+      console.error('❌ DELETE /catalog/:id error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Batch add items (for Excel/CSV import) */
@@ -225,8 +265,13 @@ export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     const body = validate(catalogBatch, request.body, reply);
     if (!body) return;
 
-    const result = await catalog.batchAddItems(request.userId, body.items, body.sourceFileId);
-    return reply.send(result);
+    try {
+      const result = await catalog.batchAddItems(request.userId, body.items, body.sourceFileId);
+      return reply.send(result);
+    } catch (err: any) {
+      console.error('❌ POST /catalog/batch error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 };
 
@@ -235,14 +280,19 @@ export const schemaRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
 
   /** Get user's inventory schema */
   server.get('/', async (request, reply) => {
-    const { data, error } = await server.supabase
-      .from('wb_users')
-      .select('inventory_schema')
-      .eq('id', request.userId)
-      .single();
+    try {
+      const { data, error } = await server.supabase
+        .from('wb_users')
+        .select('inventory_schema')
+        .eq('id', request.userId)
+        .single();
 
-    if (error) return reply.status(500).send({ error: 'Failed to fetch schema' });
-    return reply.send({ schema: data?.inventory_schema || { fields: [] } });
+      if (error) return reply.status(500).send({ error: 'Failed to fetch schema' });
+      return reply.send({ schema: data?.inventory_schema || { fields: [] } });
+    } catch (err: any) {
+      console.error('❌ GET /schema error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Update user's inventory schema */
@@ -250,14 +300,19 @@ export const schemaRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
     const body = validate(schemaUpdate, request.body, reply);
     if (!body) return;
 
-    const { data, error } = await server.supabase
-      .from('wb_users')
-      .update({ inventory_schema: body.schema })
-      .eq('id', request.userId)
-      .select('inventory_schema')
-      .single();
+    try {
+      const { data, error } = await server.supabase
+        .from('wb_users')
+        .update({ inventory_schema: body.schema })
+        .eq('id', request.userId)
+        .select('inventory_schema')
+        .single();
 
-    if (error) return reply.status(500).send({ error: 'Failed to update schema' });
-    return reply.send({ schema: data?.inventory_schema });
+      if (error) return reply.status(500).send({ error: 'Failed to update schema' });
+      return reply.send({ schema: data?.inventory_schema });
+    } catch (err: any) {
+      console.error('❌ PATCH /schema error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 };

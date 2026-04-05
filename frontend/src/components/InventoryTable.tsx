@@ -40,7 +40,7 @@ const InventoryTable: React.FC<Props> = ({ schema, onEdit, onRefresh }) => {
 
   useEffect(() => {
     fetchItems();
-  }, [page, statusFilter, sort]);
+  }, [page, statusFilter, sort, viewMode]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -111,7 +111,7 @@ const InventoryTable: React.FC<Props> = ({ schema, onEdit, onRefresh }) => {
     return [...images].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
   };
 
-  const visibleFields = schema.fields.slice(0, 4);
+  const visibleFields = (schema?.fields || []).slice(0, 4);
 
   return (
     <div className="space-y-4">
