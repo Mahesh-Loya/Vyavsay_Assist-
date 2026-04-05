@@ -269,17 +269,32 @@ export class CatalogService {
       attributes?: Record<string, any>;
     }
   ): Promise<CatalogSearchResult[]> {
+    const hasEntities = entities && (entities.product_name || entities.category || entities.price_max || entities.price_min);
 
-    // Step 1: Try structured search if we have specific entities
-    if (entities && (entities.product_name || entities.category || entities.price_max || entities.price_min)) {
-      const structured = await this.structuredSearch(userId, entities);
-      if (structured.length > 0) {
-        return structured;
+    // Run BOTH searches in parallel, then merge
+    const [structuredResults, semanticResults] = await Promise.all([
+      hasEntities ? this.structuredSearch(userId, entities!) : Promise.resolve([]),
+      this.semanticSearch(userId, queryText),
+    ]);
+
+    // Merge and deduplicate by item ID — structured results take priority
+    const seen = new Set<string>();
+    const merged: CatalogSearchResult[] = [];
+
+    for (const item of structuredResults) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        merged.push(item);
+      }
+    }
+    for (const item of semanticResults) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        merged.push(item);
       }
     }
 
-    // Step 2: Fall back to semantic vector search
-    return this.semanticSearch(userId, queryText);
+    return merged.slice(0, 10);
   }
 
   /** Structured search — exact/filtered SQL lookup */
@@ -410,32 +425,64 @@ export class CatalogService {
 
   // ─── Helpers ───────────────────────────────────────────────
 
-  /** Generate a text description from all fields — used for embedding */
+  /** Generate a natural-language description from all fields — used for embedding.
+   *  Rich descriptions dramatically improve semantic search quality. */
   generateDescription(
     name: string,
     category?: string | null,
     price?: number | null,
     attributes?: Record<string, any> | null
   ): string {
-    const parts: string[] = [name];
+    const parts: string[] = [];
 
-    if (category) parts.push(category);
+    // Start with name and category as a natural phrase
+    if (category) {
+      parts.push(`${name}, a ${category}`);
+    } else {
+      parts.push(name);
+    }
 
+    // Add key attributes as natural language
     if (attributes) {
-      for (const [key, value] of Object.entries(attributes)) {
-        if (value !== null && value !== undefined && value !== '') {
-          // Convert key from snake_case to readable form
-          const label = key.replace(/_/g, ' ');
-          parts.push(`${label}: ${value}`);
+      const attrParts: string[] = [];
+      // Prioritize important attributes for readability
+      const priorityKeys = ['make', 'model', 'year', 'fuel_type', 'fuel type', 'transmission', 'color', 'ownership', 'km_driven', 'kilometers_driven', 'kilometers driven'];
+      const seenKeys = new Set<string>();
+
+      for (const pk of priorityKeys) {
+        for (const [key, value] of Object.entries(attributes)) {
+          if (seenKeys.has(key)) continue;
+          if (key.toLowerCase() === pk || key.toLowerCase().replace(/_/g, ' ') === pk) {
+            if (value !== null && value !== undefined && value !== '') {
+              if (typeof value === 'string' && /^https?:\/\//i.test(value)) continue;
+              if (/(image|img|photo|pic)/i.test(key)) continue;
+              attrParts.push(`${value}`);
+              seenKeys.add(key);
+            }
+          }
         }
+      }
+
+      // Add remaining attributes
+      for (const [key, value] of Object.entries(attributes)) {
+        if (seenKeys.has(key)) continue;
+        if (value === null || value === undefined || value === '') continue;
+        if (typeof value === 'string' && /^https?:\/\//i.test(value)) continue;
+        if (/(image|img|photo|pic)/i.test(key)) continue;
+        const label = key.replace(/_/g, ' ');
+        attrParts.push(`${label}: ${value}`);
+        seenKeys.add(key);
+      }
+
+      if (attrParts.length > 0) {
+        parts.push(`with ${attrParts.join(', ')}`);
       }
     }
 
+    // Add price as natural phrase
     if (price) {
-      // Format as Indian currency if > 100000
       if (price >= 100000) {
-        const lakhs = (price / 100000).toFixed(1);
-        parts.push(`priced at ${lakhs} lakhs`);
+        parts.push(`priced at ${(price / 100000).toFixed(1)} lakhs`);
       } else {
         parts.push(`priced at ${price}`);
       }

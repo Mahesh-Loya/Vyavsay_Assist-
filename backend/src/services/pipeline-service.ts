@@ -6,20 +6,10 @@ import { baileysAdapter } from './baileys-adapter.js';
 import { reminderService } from './reminder-service.js';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/environment.js';
+import { getDomain } from '../domains/domain-router.js';
+import type { BaseDomain } from '../domains/types.js';
 
-/** Intents that should trigger inventory search */
-const INVENTORY_INTENTS = [
-  'inventory_inquiry',
-  'inventory_browse',
-  'inventory_compare',
-  'pricing_inquiry',
-  'ready_to_buy',
-];
-
-const PHOTO_REQUEST_REGEX = /\b(photo|photos|pic|pics|picture|pictures|image|images)\b/i;
-const NEGOTIATION_REGEX = /\b(discount|last\s*price|best\s*price|kam|sasta|nego|negotiat|final\s*price|thodi\s*kam|kam\s*ho\s*sakti|kam\s*ho\s*sakta)\b/i;
 const URL_REGEX = /^https?:\/\//i;
-const HINGLISH_HINT_REGEX = /\b(kya|hai|thoda|thodi|kam|hosakti|ho\s*sakta|bhejo|bhai|yaar|ji)\b/i;
 
 /**
  * PipelineService — the AI orchestrator.
@@ -76,6 +66,9 @@ export class PipelineService {
       return { success: false, autoReplied: false, analysis: null };
     }
 
+    // Resolve domain config from user's industry
+    const domain = getDomain(user.industry);
+
     // 2. Find or create conversation
     let { data: conversation } = await this.supabase
       .from('wb_conversations')
@@ -126,7 +119,7 @@ export class PipelineService {
       .select('sender, content')
       .eq('conversation_id', conversation.id)
       .order('created_at', { ascending: true })
-      .limit(50);
+      .limit(domain.limits.historyLoadLimit);
 
     const historyStrings = (history || []).map(
       (m: any) => `${m.sender}: ${m.content}`
@@ -141,7 +134,7 @@ export class PipelineService {
       business_name: user.business_name || '',
       industry: user.industry || '',
       services: user.services || [],
-    });
+    }, domain);
 
     console.log(`\n[Pipeline] AI Analysis for "${messageText.slice(0, 50)}...":`);
     console.log(`  Intent: ${analysis.intent} | Score: ${analysis.lead_score} | QueryType: ${analysis.query_type}`);
@@ -158,8 +151,22 @@ export class PipelineService {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    // 7. Create or update lead
-    await this.upsertLead(userId, conversation.id, customerName, analysis);
+    // 7. Create or update lead + advance funnel stage
+    await this.upsertLead(userId, conversation.id, customerName, analysis, domain, conversation);
+
+    // 7.5 Accumulate buying signal score
+    const buyingSignalScore = this.accumulateBuyingSignals(conversation, analysis, domain);
+    if (buyingSignalScore > (conversation.buying_signal_score || 0)) {
+      await this.supabase
+        .from('wb_conversations')
+        .update({ buying_signal_score: buyingSignalScore })
+        .eq('id', conversation.id);
+    }
+
+    // 7.6 Inject close-mode prompt if buying signals are strong
+    if (buyingSignalScore >= 0.7) {
+      historyStrings.push('System: BUYING SIGNALS ARE HIGH — customer is seriously interested. Suggest concrete next step (test drive, booking, token). Create gentle urgency if appropriate.');
+    }
 
     // 8. Create extracted tasks
     for (const task of analysis.tasks) {
@@ -176,7 +183,7 @@ export class PipelineService {
     console.log(`  [Pipeline] Appointment data:`, JSON.stringify(analysis.appointment));
 
     if (analysis.appointment?.proposed_time_iso) {
-      const serviceName = analysis.appointment.service || 'Test Drive';
+      const serviceName = analysis.appointment.service || domain.defaultAppointmentService;
       const dueDate = analysis.appointment.proposed_time_iso.split('T')[0];
       const taskTitle = `📅 Appointment: ${customerName} — ${serviceName}`;
 
@@ -208,7 +215,7 @@ export class PipelineService {
 
     // 9. Update conversation summary
     if (historyStrings.length >= 3) {
-      const summary = await generateSummary(historyStrings);
+      const summary = await generateSummary(historyStrings, domain);
       await this.supabase
         .from('wb_conversations')
         .update({ summary, language: analysis.language_detected })
@@ -222,8 +229,8 @@ export class PipelineService {
 
     let knowledgeChunks: string[] = [];
     let inventoryContext: { items: any[]; soldItems?: any[]; alternatives?: any[] } | null = null;
-    const isPhotoRequest = PHOTO_REQUEST_REGEX.test(messageText);
-    const isNegotiationRequest = NEGOTIATION_REGEX.test(messageText);
+    const isPhotoRequest = domain.patterns.photoRequest.test(messageText);
+    const isNegotiationRequest = domain.patterns.negotiation.test(messageText);
 
     // Infer product from context ONLY for photo requests, negotiations, and specific follow-ups
     // Do NOT infer for browse queries ("kaunsi gaadiya hai?") — that would filter to just one car
@@ -251,7 +258,7 @@ export class PipelineService {
     }
 
     const isInventoryQuery =
-      INVENTORY_INTENTS.includes(analysis.intent) ||
+      domain.inventoryIntents.includes(analysis.intent) ||
       analysis.query_type !== 'general' ||
       isPhotoRequest ||
       isNegotiationRequest ||
@@ -270,7 +277,7 @@ export class PipelineService {
 
         const allItems = await this.catalog.listItems(userId, {
           status: 'available',
-          limit: 20,
+          limit: domain.limits.browseItemLimit,
           sort: 'price_asc',
         });
 
@@ -319,42 +326,32 @@ export class PipelineService {
 
     let autoReplied = false;
 
-    const autoReplyIntents = [
-      'greeting', 'general_question', 'pricing_inquiry', 'service_inquiry',
-      'inventory_inquiry', 'inventory_browse', 'meeting_request', 'location_inquiry',
-    ];
-
     const shouldReply =
       user.auto_reply_enabled &&
       !conversation.ai_paused &&
       analysis.should_auto_reply &&
-      (analysis.confidence >= (user.ai_confidence_threshold || 0.75) ||
-        autoReplyIntents.includes(analysis.intent)) &&
+      (analysis.confidence >= (user.ai_confidence_threshold || domain.limits.confidenceThreshold) ||
+        domain.autoReplyIntents.includes(analysis.intent)) &&
       !analysis.escalation_reason;
 
     // Handle location inquiries — share address + Google Maps link
     if (analysis.intent === 'location_inquiry') {
       const address = user.business_address || '';
       const mapsLink = user.google_maps_link || '';
-      const useHinglish = analysis.language_detected.startsWith('hi') || HINGLISH_HINT_REGEX.test(messageText);
+      const useHinglish = analysis.language_detected.startsWith('hi') || domain.patterns.hinglishHint.test(messageText);
+
+      const templates = useHinglish ? domain.locationTemplates : domain.locationTemplates;
+      const lang = useHinglish ? 'hi' : 'en';
 
       let locationReply: string;
       if (address && mapsLink) {
-        locationReply = useHinglish
-          ? `Ji, humara showroom yahan hai:\n${address}\n\nGoogle Maps: ${mapsLink}\n\nAap kab aana chahenge?`
-          : `Our showroom is at:\n${address}\n\nGoogle Maps: ${mapsLink}\n\nWhen would you like to visit?`;
+        locationReply = templates.full[lang].replace('{address}', address).replace('{mapsLink}', mapsLink);
       } else if (address) {
-        locationReply = useHinglish
-          ? `Ji, humara address hai: ${address}\n\nAap kab aana chahenge?`
-          : `We're located at: ${address}\n\nWhen would you like to visit?`;
+        locationReply = templates.addressOnly[lang].replace('{address}', address);
       } else if (mapsLink) {
-        locationReply = useHinglish
-          ? `Ji, ye raha humara location: ${mapsLink}\n\nAap kab aa rahe hain?`
-          : `Here's our location: ${mapsLink}\n\nWhen are you planning to visit?`;
+        locationReply = templates.mapsOnly[lang].replace('{mapsLink}', mapsLink);
       } else {
-        locationReply = useHinglish
-          ? 'Ji, main abhi location details check karke bhejta hoon.'
-          : 'Let me get the exact location details and share with you.';
+        locationReply = templates.none[lang];
       }
 
       const sent = await baileysAdapter.sendMessage(userId, customerJid, locationReply);
@@ -370,6 +367,34 @@ export class PipelineService {
     }
 
     if (analysis.intent === 'price_negotiation' || isNegotiationRequest) {
+      // Track negotiation round
+      const currentRound = (conversation.negotiation_round || 0) + 1;
+      await this.supabase
+        .from('wb_conversations')
+        .update({ negotiation_round: currentRound })
+        .eq('id', conversation.id);
+
+      // Check if we should escalate to human (round > maxRounds)
+      if (currentRound > domain.negotiationConfig.maxRounds) {
+        const escalationMsg = analysis.language_detected.startsWith('hi')
+          ? 'Bhai, ye price meri authority se bahar hai. Main aapko direct owner se baat karwa deta hoon — wo final call le lenge.'
+          : 'This is beyond my authority. Let me connect you directly with the owner who can take the final call.';
+
+        const sent = await baileysAdapter.sendMessage(userId, customerJid, escalationMsg);
+        if (sent) {
+          await this.supabase.from('wb_messages').insert({
+            conversation_id: conversation.id, sender: 'ai', content: escalationMsg,
+          });
+          // Pause AI for this conversation — human takes over
+          await this.supabase
+            .from('wb_conversations')
+            .update({ ai_paused: true })
+            .eq('id', conversation.id);
+          autoReplied = true;
+        }
+        return { success: true, autoReplied, analysis };
+      }
+
       const product = analysis.entities?.product_name || inferredProductName || inventoryContext?.items?.[0]?.item_name;
       const offeredBudget = this.extractBudgetInr(messageText) || this.findLatestCustomerBudget(historyStrings);
       const referenceItem = inventoryContext?.items?.[0] || inventoryContext?.soldItems?.[0] || null;
@@ -378,20 +403,37 @@ export class PipelineService {
         analysis.language_detected,
         product,
         offeredBudget,
-        referenceItem
+        referenceItem,
+        domain
       );
 
       const sent = await baileysAdapter.sendMessage(userId, customerJid, negotiationReply);
       if (sent) {
         await this.supabase.from('wb_messages').insert({
-          conversation_id: conversation.id,
-          sender: 'ai',
-          content: negotiationReply,
+          conversation_id: conversation.id, sender: 'ai', content: negotiationReply,
         });
         autoReplied = true;
       }
 
       return { success: true, autoReplied, analysis };
+    }
+
+    // Human handoff: escalate on complaint or frustrated sentiment
+    if (analysis.intent === 'complaint' ||
+        (analysis.sentiment && analysis.sentiment.polarity < -0.5)) {
+      const handoffMsg = analysis.language_detected.startsWith('hi')
+        ? 'Ji, main samajh sakta hoon. Main aapko hamare senior team member se connect karwa deta hoon jo aapki better help kar sakenge.'
+        : 'I understand your concern. Let me connect you with a senior team member who can help you better.';
+
+      await baileysAdapter.sendMessage(userId, customerJid, handoffMsg);
+      await this.supabase.from('wb_messages').insert({
+        conversation_id: conversation.id, sender: 'ai', content: handoffMsg,
+      });
+      await this.supabase
+        .from('wb_conversations')
+        .update({ ai_paused: true })
+        .eq('id', conversation.id);
+      return { success: true, autoReplied: true, analysis };
     }
 
     if (shouldReply) {
@@ -418,7 +460,7 @@ export class PipelineService {
             continue;
           }
 
-          const mediaList = isPhotoRequest ? images.slice(0, 3) : images.slice(0, 1);
+          const mediaList = isPhotoRequest ? images.slice(0, domain.limits.maxPhotosPerRequest) : images.slice(0, 1);
           for (let i = 0; i < mediaList.length; i++) {
             const imageUrl = mediaList[i];
             const price = item.price
@@ -438,7 +480,7 @@ export class PipelineService {
       // Deterministic photo acknowledgement avoids repetitive LLM asks like "which car?"
       if (isPhotoRequest) {
         const selectedProduct = analysis.entities?.product_name || inferredProductName || inventoryContext?.items?.[0]?.item_name;
-        replyText = this.buildPhotoReply(analysis.language_detected, selectedProduct, mediaSent);
+        replyText = this.buildPhotoReply(analysis.language_detected, selectedProduct, mediaSent, domain);
       } else {
         // Generate reply with inventory, knowledge, AND conversation memory
         replyText = await generateReply(
@@ -452,11 +494,12 @@ export class PipelineService {
           },
           analysis.language_detected,
           inventoryContext,
-          conversationMemory
+          conversationMemory,
+          domain
         );
       }
 
-      const finalReplyText = mediaSent ? this.stripUrls(replyText) : replyText;
+      const finalReplyText = mediaSent ? this.stripUrls(replyText, domain.fallbacks.photoFallback) : replyText;
 
       // Send text reply
       const sent = await baileysAdapter.sendMessage(userId, customerJid, finalReplyText);
@@ -470,7 +513,7 @@ export class PipelineService {
       }
     } else if (user.auto_reply_enabled && !analysis.escalation_reason) {
       // Fallback acknowledgement
-      const fallback = "Thanks for reaching out! I've noted your message and someone from our team will get back to you shortly.";
+      const fallback = domain.fallbacks.genericAcknowledgement;
       const sent = await baileysAdapter.sendMessage(userId, customerJid, fallback);
       if (sent) {
         await this.supabase.from('wb_messages').insert({
@@ -485,12 +528,14 @@ export class PipelineService {
     return { success: true, autoReplied, analysis };
   }
 
-  /** Upsert lead — create new or upgrade score if higher */
+  /** Upsert lead — create new or upgrade score if higher, advance funnel stage */
   private async upsertLead(
     userId: string,
     conversationId: string,
     customerName: string,
-    analysis: AnalysisResult
+    analysis: AnalysisResult,
+    domain: BaseDomain,
+    conversation: any
   ): Promise<void> {
     const { data: existingLead } = await this.supabase
       .from('wb_leads')
@@ -498,9 +543,17 @@ export class PipelineService {
       .eq('conversation_id', conversationId)
       .single();
 
+    // Determine funnel stage based on intent
+    const currentStage = conversation.funnel_stage || 'inquiry';
+    const newStage = this.advanceFunnelStage(currentStage, analysis.intent, domain);
+
     if (existingLead) {
       const scorePriority: Record<string, number> = { high: 3, medium: 2, low: 1 };
-      if ((scorePriority[analysis.lead_score] || 0) > (scorePriority[existingLead.score] || 0)) {
+      const shouldUpdate =
+        (scorePriority[analysis.lead_score] || 0) > (scorePriority[existingLead.score] || 0) ||
+        newStage !== existingLead.stage;
+
+      if (shouldUpdate) {
         await this.supabase
           .from('wb_leads')
           .update({
@@ -508,6 +561,7 @@ export class PipelineService {
             intent: analysis.intent,
             summary: analysis.summary_update,
             customer_name: customerName,
+            ...(newStage !== existingLead.stage ? { stage: newStage } : {}),
           })
           .eq('id', existingLead.id);
       }
@@ -517,11 +571,94 @@ export class PipelineService {
         conversation_id: conversationId,
         customer_name: customerName,
         score: analysis.lead_score,
-        stage: 'new',
+        stage: newStage,
         intent: analysis.intent,
         summary: analysis.summary_update,
       });
     }
+
+    // Update conversation funnel stage if advanced
+    if (newStage !== currentStage) {
+      await this.supabase
+        .from('wb_conversations')
+        .update({ funnel_stage: newStage })
+        .eq('id', conversation.id);
+      console.log(`  [Pipeline] Funnel: ${currentStage} → ${newStage}`);
+    }
+  }
+
+  /** Advance funnel stage based on detected intent — forward only, never regress */
+  private advanceFunnelStage(currentStage: string, intent: string, domain: BaseDomain): string {
+    // Stage ordering for forward-only progression
+    const stageOrder: Record<string, number> = {
+      inquiry: 1,
+      qualification: 2,
+      test_drive: 3,
+      negotiation: 4,
+      booking: 5,
+      documentation: 6,
+      delivery: 7,
+      // Fallback for generic domain
+      new: 1,
+      engaged: 2,
+      negotiating: 3,
+      booked: 4,
+    };
+
+    // Intent → target stage mapping
+    const intentToStage: Record<string, string> = {
+      greeting: 'inquiry',
+      general_question: 'inquiry',
+      inventory_browse: 'qualification',
+      inventory_inquiry: 'qualification',
+      pricing_inquiry: 'qualification',
+      inventory_compare: 'qualification',
+      test_drive_request: 'test_drive',
+      meeting_request: 'test_drive',
+      price_negotiation: 'negotiation',
+      trade_in_inquiry: 'negotiation',
+      financing_inquiry: 'negotiation',
+      ready_to_buy: 'booking',
+      urgency_signal: 'booking',
+      document_inquiry: 'documentation',
+    };
+
+    const targetStage = intentToStage[intent] || currentStage;
+    const currentOrder = stageOrder[currentStage] || 1;
+    const targetOrder = stageOrder[targetStage] || 1;
+
+    // Only advance forward, never regress
+    return targetOrder > currentOrder ? targetStage : currentStage;
+  }
+
+  /** Accumulate buying signal score from intent history */
+  private accumulateBuyingSignals(conversation: any, analysis: AnalysisResult, domain: BaseDomain): number {
+    let score = conversation.buying_signal_score || 0;
+
+    // Intent-based signals
+    const signalWeights: Record<string, number> = {
+      financing_inquiry: 0.2,
+      document_inquiry: 0.15,
+      test_drive_request: 0.25,
+      insurance_inquiry: 0.1,
+      trade_in_inquiry: 0.2,
+      ready_to_buy: 0.3,
+      urgency_signal: 0.25,
+      price_negotiation: 0.15,
+      meeting_request: 0.1,
+    };
+
+    const weight = signalWeights[analysis.intent];
+    if (weight) {
+      score = Math.min(1.0, score + weight);
+    }
+
+    // Boost for excited sentiment
+    if (analysis.sentiment && analysis.sentiment.polarity > 0.5) {
+      score = Math.min(1.0, score + 0.05);
+    }
+
+    return score;
   }
 
   /**
@@ -608,6 +745,76 @@ export class PipelineService {
       parts.push(`WHAT AI ALREADY DID (don't repeat):\n${[...new Set(aiActions)].slice(-6).join('\n')}`);
     }
 
+    // 4. Track products discussed — shown, liked, rejected
+    const productsMentioned = new Map<string, string>(); // name → status
+    for (const msg of historyStrings) {
+      const lower = msg.toLowerCase();
+      // Products AI showed/suggested
+      if (msg.startsWith('ai:')) {
+        const priceMatch = lower.match(/(\w[\w\s]+?)\s*(?:—|ka|ki|ke|is|at)\s*(?:₹|price|listed)/i);
+        if (priceMatch) {
+          const product = priceMatch[1].trim();
+          if (product.length > 3 && product.length < 50) {
+            productsMentioned.set(product, productsMentioned.get(product) || 'shown');
+          }
+        }
+      }
+      // Products customer showed interest in
+      if (msg.startsWith('customer:')) {
+        if (/pasand|like|achh[ai]|interested|book|test\s*drive/i.test(lower)) {
+          for (const [product] of productsMentioned) {
+            if (lower.includes(product.toLowerCase())) {
+              productsMentioned.set(product, 'liked');
+            }
+          }
+        }
+        // Products customer rejected
+        if (/nahi|no|not\s*interested|reject|don't|budget\s*se\s*bahar|mehenga/i.test(lower)) {
+          for (const [product] of productsMentioned) {
+            if (lower.includes(product.toLowerCase())) {
+              productsMentioned.set(product, 'rejected');
+            }
+          }
+        }
+      }
+    }
+
+    if (productsMentioned.size > 0) {
+      const productList = [...productsMentioned.entries()]
+        .map(([name, status]) => `- ${name}: ${status.toUpperCase()}`)
+        .join('\n');
+      parts.push(`PRODUCTS DISCUSSED:\n${productList}\nDo NOT suggest REJECTED products again.`);
+    }
+
+    // 5. Extract customer preferences from conversation
+    const preferences: string[] = [];
+    const fullText = customerMessages.join(' ').toLowerCase();
+    if (/diesel/i.test(fullText)) preferences.push('Prefers diesel');
+    if (/petrol/i.test(fullText)) preferences.push('Prefers petrol');
+    if (/automatic|cvt|amt/i.test(fullText)) preferences.push('Prefers automatic');
+    if (/manual/i.test(fullText)) preferences.push('Prefers manual');
+    if (/suv/i.test(fullText)) preferences.push('Interested in SUV');
+    if (/sedan/i.test(fullText)) preferences.push('Interested in sedan');
+    if (/hatchback/i.test(fullText)) preferences.push('Interested in hatchback');
+    if (/first\s*owner|single\s*owner/i.test(fullText)) preferences.push('Wants first owner');
+    if (/family/i.test(fullText)) preferences.push('Needs family car');
+    if (/low\s*km|less\s*driven|kam\s*chali/i.test(fullText)) preferences.push('Wants low mileage');
+
+    if (preferences.length > 0) {
+      parts.push(`CUSTOMER PREFERENCES:\n${[...new Set(preferences)].join(', ')}`);
+    }
+
+    // 6. Funnel stage and buying signal context
+    if (conversation.funnel_stage && conversation.funnel_stage !== 'inquiry') {
+      parts.push(`SALES STAGE: ${conversation.funnel_stage}`);
+    }
+    if (conversation.buying_signal_score > 0) {
+      parts.push(`BUYING INTENT: ${conversation.buying_signal_score >= 0.7 ? 'HIGH — suggest next step' : conversation.buying_signal_score >= 0.4 ? 'MEDIUM' : 'LOW'}`);
+    }
+    if (conversation.negotiation_round > 0) {
+      parts.push(`NEGOTIATION ROUND: ${conversation.negotiation_round}`);
+    }
+
     parts.push(`CURRENT TIME: ${now.toISOString()}`);
     parts.push(`MESSAGES SO FAR: ${historyStrings.length}`);
 
@@ -684,13 +891,13 @@ export class PipelineService {
   }
 
   /** Remove URLs from text when media has already been sent as attachments. */
-  private stripUrls(text: string): string {
+  private stripUrls(text: string, fallbackText = 'Photos sent. Agar aur close-up chahiye ho to bataiye ji.'): string {
     const withoutUrls = text
       .replace(/https?:\/\/\S+/gi, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    return withoutUrls || 'Photos sent. Agar aur close-up chahiye ho to bataiye ji.';
+    return withoutUrls || fallbackText;
   }
 
   /** Build negotiation response using known budget + known model to avoid repeating same question. */
@@ -699,11 +906,13 @@ export class PipelineService {
     language: string,
     product?: string,
     offeredBudget?: number,
-    referenceItem?: any
+    referenceItem?: any,
+    domain?: BaseDomain
   ): string {
-    const useHinglish = language.startsWith('hi') || HINGLISH_HINT_REGEX.test(messageText);
+    const d = domain || getDomain(null);
+    const useHinglish = language.startsWith('hi') || d.patterns.hinglishHint.test(messageText);
     const listedPrice = typeof referenceItem?.price === 'number' ? referenceItem.price : undefined;
-    const cfg = this.getNegotiationConfig(referenceItem);
+    const cfg = this.getNegotiationConfig(referenceItem, d);
 
     const budgetText = offeredBudget ? this.formatInrCompact(offeredBudget) : '';
     const priceText = listedPrice ? this.formatInrCompact(listedPrice) : '';
@@ -775,26 +984,19 @@ export class PipelineService {
   }
 
   /** Derive per-product negotiation constraints from attributes. */
-  private getNegotiationConfig(item?: any): { maxDiscountPercent: number; floorPrice?: number } {
+  private getNegotiationConfig(item?: any, domain?: BaseDomain): { maxDiscountPercent: number; floorPrice?: number } {
+    const d = domain || getDomain(null);
     const listedPrice = typeof item?.price === 'number' ? item.price : undefined;
     const attrs = item?.attributes && typeof item.attributes === 'object' ? item.attributes : {};
 
-    const percent = this.pickNumber(attrs, [
-      'max_discount_percent',
-      'negotiation_percent',
-      'discount_percent',
-      'max_discount',
-    ]);
+    const percent = this.pickNumber(attrs, d.negotiationConfig.discountPercentAttributeKeys);
 
-    const maxDiscountPercent = Math.min(30, Math.max(0, percent ?? 4));
+    const maxDiscountPercent = Math.min(
+      d.negotiationConfig.maxDiscountPercentCap,
+      Math.max(0, percent ?? d.negotiationConfig.defaultDiscountPercent)
+    );
 
-    const minPriceAttr = this.pickNumber(attrs, [
-      'min_price',
-      'minimum_price',
-      'floor_price',
-      'lowest_price',
-      'min_sell_price',
-    ]);
+    const minPriceAttr = this.pickNumber(attrs, d.negotiationConfig.floorPriceAttributeKeys);
 
     const floorByPercent = listedPrice ? Math.round(listedPrice * (1 - maxDiscountPercent / 100)) : undefined;
     const floorPrice =
@@ -815,20 +1017,16 @@ export class PipelineService {
     return undefined;
   }
 
-  /** Build short respectful photo-reply that avoids re-asking selected car. */
-  private buildPhotoReply(language: string, product?: string, mediaSent = false): string {
+  /** Build short respectful photo-reply that avoids re-asking selected product. */
+  private buildPhotoReply(language: string, product?: string, mediaSent = false, domain?: BaseDomain): string {
+    const d = domain || getDomain(null);
     const useHinglish = language.startsWith('hi');
-    if (useHinglish) {
-      if (mediaSent && product) return `Ji, ${product} ki photos bhej di hain. Agar close-up ya interior ki aur photos chahiye ho to bata dijiye.`;
-      if (mediaSent) return 'Ji, photos bhej di hain. Agar aur specific angle chahiye ho to bata dijiye.';
-      if (product) return `Ji, ${product} ke photos arrange karke turant bhejta hoon.`;
-      return 'Ji bilkul, photos bhej deta hoon. Aap kaunsi car dekh rahe the?';
-    }
+    const lang = useHinglish ? 'hi' : 'en';
 
-    if (mediaSent && product) return `Shared the photos for ${product}. If you want close-up shots or interior photos, I can send those too.`;
-    if (mediaSent) return 'Shared the photos. If you need a specific angle, I can send more.';
-    if (product) return `Sure, I will share photos for ${product} right away.`;
-    return 'Sure, I can share photos. Which car would you like to see?';
+    if (mediaSent && product) return d.photoTemplates.sentWithProduct[lang].replace('{product}', product);
+    if (mediaSent) return d.photoTemplates.sentGeneric[lang];
+    if (product) return d.photoTemplates.pendingWithProduct[lang].replace('{product}', product);
+    return d.photoTemplates.pendingGeneric[lang];
   }
 
   /** Extract INR budget from free text (supports lakh/crore and plain numbers). */

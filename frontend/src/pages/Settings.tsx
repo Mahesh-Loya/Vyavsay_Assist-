@@ -116,13 +116,14 @@ const Settings: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Industry</label>
-                <input 
-                  type="text" 
-                  value={profile?.industry || ''} 
+                <select
+                  value={profile?.industry || 'generic'}
                   onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
-                  placeholder="e.g. Solar Energy"
                   className="w-full bg-muted/30 border border-border rounded-2xl p-4 focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                />
+                >
+                  <option value="generic">General Business</option>
+                  <option value="used_cars">Used Car Dealer</option>
+                </select>
               </div>
             </div>
             <div className="space-y-2">

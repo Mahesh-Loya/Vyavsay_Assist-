@@ -91,7 +91,7 @@ export class BaileysAdapter {
     return { jid, customerName, customerPhone, text, timestamp };
   }
 
-  /** Send a text message via Baileys (rate-limited) */
+  /** Send a text message via Baileys (rate-limited, with typing indicator) */
   async sendMessage(userId: string, jid: string, text: string): Promise<boolean> {
     try {
       const socket = sessionManager.getSocket(userId);
@@ -102,6 +102,16 @@ export class BaileysAdapter {
 
       // Wait for rate limit slot
       await rateLimiter.waitForSlot(userId);
+
+      // Simulate typing — makes the bot feel human
+      try {
+        await socket.sendPresenceUpdate('composing', jid);
+        const typingDelay = Math.min(3000, Math.max(500, text.length * 50));
+        await new Promise(resolve => setTimeout(resolve, typingDelay));
+        await socket.sendPresenceUpdate('paused', jid);
+      } catch {
+        // Presence update is best-effort — don't fail the send
+      }
 
       await socket.sendMessage(jid, { text });
       console.log(`✅ [${userId.slice(0, 8)}] Reply sent to ${jid.split('@')[0]}`);
