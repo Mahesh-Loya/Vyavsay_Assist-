@@ -13,6 +13,7 @@ import {
   XCircle,
   LayoutGrid,
   List,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -107,7 +108,7 @@ const InventoryTable: React.FC<Props> = ({ schema, onEdit, onRefresh }) => {
 
   const getImages = (item: any) => {
     const images = Array.isArray(item.images) ? item.images : [];
-    return images.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    return [...images].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
   };
 
   const visibleFields = schema.fields.slice(0, 4);
@@ -220,11 +221,17 @@ const InventoryTable: React.FC<Props> = ({ schema, onEdit, onRefresh }) => {
                   {/* Image */}
                   <div className="relative aspect-[4/3] bg-cream-100 overflow-hidden">
                     {primaryImage?.url ? (
-                      <img
-                        src={primaryImage.url}
-                        alt={item.item_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                      <>
+                        <img
+                          src={primaryImage.url}
+                          alt={item.item_name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-ink-300/70 backdrop-blur-sm text-cream-50 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                          <ImageIcon className="w-3 h-3" />
+                          {images.length}
+                        </div>
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Package className="w-12 h-12 text-cream-300" />
@@ -350,13 +357,21 @@ const InventoryTable: React.FC<Props> = ({ schema, onEdit, onRefresh }) => {
                   return (
                     <tr key={item.id} className={`border-b border-cream-200/60 hover:bg-cream-200/40 transition-colors ${isSold ? 'opacity-50' : ''}`}>
                       <td className="px-6 py-4">
-                        {primaryImage?.url ? (
-                          <img src={primaryImage.url} alt={item.item_name} className="w-12 h-12 rounded-xl object-cover border border-cream-200" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-cream-200/60 flex items-center justify-center">
-                            <Package className="w-5 h-5 text-ink-100" />
-                          </div>
-                        )}
+                        <div className="relative w-12 h-12">
+                          {primaryImage?.url ? (
+                            <img src={primaryImage.url} alt={item.item_name} className="w-12 h-12 rounded-xl object-cover border border-cream-200" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-cream-200/60 flex items-center justify-center">
+                              <Package className="w-5 h-5 text-ink-100" />
+                            </div>
+                          )}
+
+                          {primaryImage?.url && (
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-ink-300 text-cream-50 flex items-center justify-center shadow-sm">
+                              <ImageIcon className="w-3 h-3" />
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4"><p className="font-semibold text-sm text-ink-300">{item.item_name}</p></td>
                       <td className="px-6 py-4">
