@@ -7,10 +7,6 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_ANON_KEY
-ARG VITE_API_BASE_URL
-
 RUN npm run build
 
 # Serve with nginx
