@@ -55,7 +55,7 @@ export class CatalogService {
 
     let query = this.supabase
       .from('wb_catalog_items')
-      .select('*', { count: 'exact' })
+      .select(CatalogService.ITEM_COLUMNS, { count: 'exact' })
       .eq('user_id', userId);
 
     // Status filter
@@ -104,11 +104,14 @@ export class CatalogService {
     return { items: data || [], total: count || 0 };
   }
 
+  // Columns to return for API responses (excludes large embedding vector)
+  private static readonly ITEM_COLUMNS = 'id, user_id, source_file_id, item_name, category, description, price, quantity, images, attributes, is_active, created_at, updated_at';
+
   /** Get a single catalog item (verify ownership) */
   async getItem(userId: string, itemId: string): Promise<CatalogItem | null> {
     const { data, error } = await this.supabase
       .from('wb_catalog_items')
-      .select('*')
+      .select(CatalogService.ITEM_COLUMNS)
       .eq('id', itemId)
       .eq('user_id', userId)
       .single();
@@ -158,7 +161,7 @@ export class CatalogService {
         embedding: embeddingJson,
         is_active: true,
       })
-      .select()
+      .select(CatalogService.ITEM_COLUMNS)
       .single();
 
     if (error) {
@@ -210,7 +213,7 @@ export class CatalogService {
       .update(updatePayload)
       .eq('id', itemId)
       .eq('user_id', userId)
-      .select()
+      .select(CatalogService.ITEM_COLUMNS)
       .single();
 
     if (error) {
@@ -221,9 +224,22 @@ export class CatalogService {
     return data;
   }
 
-  /** Mark item as sold (quantity = 0) */
+  /** Mark item as sold (quantity = 0) — direct update, no re-embedding needed */
   async markSold(userId: string, itemId: string): Promise<CatalogItem | null> {
-    return this.updateItem(userId, itemId, { quantity: 0 });
+    const { data, error } = await this.supabase
+      .from('wb_catalog_items')
+      .update({ quantity: 0 })
+      .eq('id', itemId)
+      .eq('user_id', userId)
+      .select(CatalogService.ITEM_COLUMNS)
+      .single();
+
+    if (error) {
+      console.error('❌ Catalog markSold error:', error);
+      return null;
+    }
+
+    return data;
   }
 
   /** Soft delete (is_active = false) */
