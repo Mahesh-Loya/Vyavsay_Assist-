@@ -9,7 +9,7 @@ export const fileRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   // Register multipart support for this scope
   await server.register(multipart, {
     limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB max
+        fileSize: 15 * 1024 * 1024, // 15MB max
     },
   });
 

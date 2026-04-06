@@ -9,7 +9,7 @@ import { uploadCatalogImages } from '../services/catalog-image-service.js';
 export const catalogRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   await server.register(multipart, {
     limits: {
-      fileSize: 10 * 1024 * 1024,
+        fileSize: 15 * 1024 * 1024, // 15MB max per file
       files: 5,
     },
   });
