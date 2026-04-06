@@ -7,6 +7,10 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     const { id } = request.params as { id: string };
     if (id !== request.userId) return reply.status(403).send({ error: 'Forbidden' });
 
+    if (!request.userEmail) {
+      return reply.status(500).send({ error: 'Authenticated user email is missing' });
+    }
+
     try {
       let { data, error } = await server.supabase
         .from('wb_users')
@@ -19,7 +23,7 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           // No user found, create one
           const { data: newUser, error: createError } = await server.supabase
             .from('wb_users')
-            .insert({ id: request.userId })
+            .insert({ id: request.userId, email: request.userEmail })
             .select()
             .single();
           if (createError) {
@@ -50,12 +54,15 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       return;
     }
 
+    if (!request.userEmail) {
+      return reply.status(500).send({ error: 'Authenticated user email is missing' });
+    }
+
     try {
       server.log.info('Starting Supabase PATCH');
       const { data, error } = await server.supabase
         .from('wb_users')
-        .update(updates)
-        .eq('id', request.userId)
+        .upsert({ id: request.userId, email: request.userEmail, ...updates }, { onConflict: 'id' })
         .select()
         .single();
 
