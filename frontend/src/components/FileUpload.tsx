@@ -21,7 +21,8 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
   const [fileId, setFileId] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
   const [columns, setColumns] = useState<any[]>([]);
-  const [rows, setRows] = useState<any[]>([]);
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [allRows, setAllRows] = useState<any[]>([]);
   const [totalRows, setTotalRows] = useState(0);
 
   // Processing results
@@ -45,7 +46,8 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
 
       setFileId(data.fileId);
       setColumns(data.columns);
-      setRows(data.preview);
+      setPreviewRows(data.preview);
+      setAllRows(data.rows || data.preview);
       setTotalRows(data.totalRows);
       setStep('mapping');
     } catch (err: any) {
@@ -149,7 +151,8 @@ const FileUpload: React.FC<Props> = ({ onComplete, onClose }) => {
           {step === 'mapping' && (
             <ColumnMapper
               columns={columns}
-              previewRows={rows}
+              previewRows={previewRows}
+              allRows={allRows}
               totalRows={totalRows}
               onConfirm={handleMapping}
               error={error}

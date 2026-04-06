@@ -4,14 +4,19 @@ import { validate, knowledgeCreate } from '../utils/validation.js';
 export const knowledgeRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
 
   server.get('/', async (request, reply) => {
-    const { data, error } = await server.supabase
-      .from('wb_knowledge_base')
-      .select('*')
-      .eq('user_id', request.userId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await server.supabase
+        .from('wb_knowledge_base')
+        .select('*')
+        .eq('user_id', request.userId)
+        .order('created_at', { ascending: false });
 
-    if (error) return reply.status(500).send({ error: 'Failed to fetch knowledge items' });
-    return reply.send(data);
+      if (error) return reply.status(500).send({ error: 'Failed to fetch knowledge items' });
+      return reply.send(data);
+    } catch (err: any) {
+      console.error('❌ GET /knowledge error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   server.post('/', async (request, reply) => {
@@ -33,13 +38,18 @@ export const knowledgeRoutes: FastifyPluginAsync = async (server: FastifyInstanc
   });
 
   server.delete('/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const { error } = await server.supabase
-      .from('wb_knowledge_base')
-      .delete()
-      .match({ id, user_id: request.userId });
+    try {
+      const { id } = request.params as { id: string };
+      const { error } = await server.supabase
+        .from('wb_knowledge_base')
+        .delete()
+        .match({ id, user_id: request.userId });
 
-    if (error) return reply.status(500).send({ error: 'Failed to delete knowledge item' });
-    return reply.send({ success: true });
+      if (error) return reply.status(500).send({ error: 'Failed to delete knowledge item' });
+      return reply.send({ success: true });
+    } catch (err: any) {
+      console.error('❌ DELETE /knowledge/:id error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 };

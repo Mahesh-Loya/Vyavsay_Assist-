@@ -80,6 +80,7 @@ export const fileRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         totalRows: parseResult.totalRows,
         columns: parseResult.columns,
         preview: parseResult.rows.slice(0, 5), // first 5 rows as preview
+        rows: parseResult.rows, // full dataset for processing
       });
     } catch (err: any) {
       console.error('❌ File parse error:', err.message);
@@ -98,19 +99,18 @@ export const fileRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     if (!body) return;
     const { columnMapping, rows } = body;
 
-    // Verify file belongs to user
-    const { data: fileRecord } = await server.supabase
-      .from('wb_source_files')
-      .select('*')
-      .eq('id', fileId)
-      .eq('user_id', userId)
-      .single();
-
-    if (!fileRecord) {
-      return reply.status(404).send({ error: 'File not found' });
-    }
-
     try {
+      // Verify file belongs to user
+      const { data: fileRecord } = await server.supabase
+        .from('wb_source_files')
+        .select('*')
+        .eq('id', fileId)
+        .eq('user_id', userId)
+        .single();
+
+      if (!fileRecord) {
+        return reply.status(404).send({ error: 'File not found' });
+      }
       // Update file status
       await server.supabase
         .from('wb_source_files')
@@ -186,38 +186,48 @@ export const fileRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
   /** List uploaded files */
   server.get('/', async (request, reply) => {
-    const userId = request.userId;
+    try {
+      const userId = request.userId;
 
-    const { data, error } = await server.supabase
-      .from('wb_source_files')
-      .select('*')
-      .eq('user_id', userId)
-      .order('uploaded_at', { ascending: false });
+      const { data, error } = await server.supabase
+        .from('wb_source_files')
+        .select('*')
+        .eq('user_id', userId)
+        .order('uploaded_at', { ascending: false });
 
-    if (error) return reply.status(500).send({ error: 'Failed to fetch files' });
-    return reply.send({ files: data || [] });
+      if (error) return reply.status(500).send({ error: 'Failed to fetch files' });
+      return reply.send({ files: data || [] });
+    } catch (err: any) {
+      console.error('❌ GET /files error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 
   /** Delete a file and its associated catalog items */
   server.delete('/:fileId', async (request, reply) => {
-    const userId = request.userId;
-    const { fileId } = request.params as { fileId: string };
+    try {
+      const userId = request.userId;
+      const { fileId } = request.params as { fileId: string };
 
-    // Soft-delete catalog items from this file
-    await server.supabase
-      .from('wb_catalog_items')
-      .update({ is_active: false })
-      .eq('source_file_id', fileId)
-      .eq('user_id', userId);
+      // Soft-delete catalog items from this file
+      await server.supabase
+        .from('wb_catalog_items')
+        .update({ is_active: false })
+        .eq('source_file_id', fileId)
+        .eq('user_id', userId);
 
-    // Delete the file record
-    const { error } = await server.supabase
-      .from('wb_source_files')
-      .delete()
-      .eq('id', fileId)
-      .eq('user_id', userId);
+      // Delete the file record
+      const { error } = await server.supabase
+        .from('wb_source_files')
+        .delete()
+        .eq('id', fileId)
+        .eq('user_id', userId);
 
-    if (error) return reply.status(500).send({ error: 'Failed to delete file' });
-    return reply.send({ success: true });
+      if (error) return reply.status(500).send({ error: 'Failed to delete file' });
+      return reply.send({ success: true });
+    } catch (err: any) {
+      console.error('❌ DELETE /files/:fileId error:', err);
+      return reply.status(500).send({ error: err.message || 'Internal server error' });
+    }
   });
 };

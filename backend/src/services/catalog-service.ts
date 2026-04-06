@@ -55,7 +55,7 @@ export class CatalogService {
 
     let query = this.supabase
       .from('wb_catalog_items')
-      .select('*', { count: 'exact' })
+      .select(CatalogService.ITEM_COLUMNS, { count: 'exact' })
       .eq('user_id', userId);
 
     // Status filter
@@ -104,14 +104,22 @@ export class CatalogService {
     return { items: data || [], total: count || 0 };
   }
 
+  // Columns to return for API responses (excludes large embedding vector)
+  private static readonly ITEM_COLUMNS = 'id, user_id, source_file_id, item_name, category, description, price, quantity, images, attributes, is_active, created_at, updated_at';
+
   /** Get a single catalog item (verify ownership) */
   async getItem(userId: string, itemId: string): Promise<CatalogItem | null> {
-    const { data } = await this.supabase
+    const { data, error } = await this.supabase
       .from('wb_catalog_items')
-      .select('*')
+      .select(CatalogService.ITEM_COLUMNS)
       .eq('id', itemId)
       .eq('user_id', userId)
       .single();
+
+    if (error) {
+      console.error('❌ Catalog getItem error:', error);
+      return null;
+    }
 
     return data;
   }
@@ -128,9 +136,16 @@ export class CatalogService {
     // Generate text description from all fields for embedding
     const description = this.generateDescription(item.item_name, item.category, item.price, item.attributes);
 
-    // Embed the description
-    const embeddings = await this.rag.embedBatch([description]);
-    const embedding = embeddings?.[0] || null;
+    // Embed the description (non-fatal — item is created even if embedding fails)
+    let embeddingJson: string | null = null;
+    try {
+      const embeddings = await this.rag.embedBatch([description]);
+      if (embeddings?.[0]) {
+        embeddingJson = JSON.stringify(embeddings[0]);
+      }
+    } catch (err) {
+      console.error('⚠️ Embedding failed for new item, proceeding without:', err);
+    }
 
     const { data, error } = await this.supabase
       .from('wb_catalog_items')
@@ -143,10 +158,10 @@ export class CatalogService {
         quantity: item.quantity ?? 1,
         images: item.images || [],
         attributes: item.attributes || {},
-        embedding: embedding ? JSON.stringify(embedding) : null,
+        embedding: embeddingJson,
         is_active: true,
       })
-      .select()
+      .select(CatalogService.ITEM_COLUMNS)
       .single();
 
     if (error) {
@@ -183,9 +198,13 @@ export class CatalogService {
       );
       updatePayload.description = description;
 
-      const embeddings = await this.rag.embedBatch([description]);
-      if (embeddings?.[0]) {
-        updatePayload.embedding = JSON.stringify(embeddings[0]);
+      try {
+        const embeddings = await this.rag.embedBatch([description]);
+        if (embeddings?.[0]) {
+          updatePayload.embedding = JSON.stringify(embeddings[0]);
+        }
+      } catch (err) {
+        console.error('⚠️ Embedding failed for item update, proceeding without:', err);
       }
     }
 
@@ -194,7 +213,7 @@ export class CatalogService {
       .update(updatePayload)
       .eq('id', itemId)
       .eq('user_id', userId)
-      .select()
+      .select(CatalogService.ITEM_COLUMNS)
       .single();
 
     if (error) {
@@ -205,9 +224,22 @@ export class CatalogService {
     return data;
   }
 
-  /** Mark item as sold (quantity = 0) */
+  /** Mark item as sold (quantity = 0) — direct update, no re-embedding needed */
   async markSold(userId: string, itemId: string): Promise<CatalogItem | null> {
-    return this.updateItem(userId, itemId, { quantity: 0 });
+    const { data, error } = await this.supabase
+      .from('wb_catalog_items')
+      .update({ quantity: 0 })
+      .eq('id', itemId)
+      .eq('user_id', userId)
+      .select(CatalogService.ITEM_COLUMNS)
+      .single();
+
+    if (error) {
+      console.error('❌ Catalog markSold error:', error);
+      return null;
+    }
+
+    return data;
   }
 
   /** Soft delete (is_active = false) */
@@ -514,11 +546,16 @@ export class CatalogService {
       this.generateDescription(item.item_name, item.category, item.price, item.attributes)
     );
 
-    // Batch embed all descriptions
-    const embeddings = await this.rag.embedBatch(descriptions);
-    if (!embeddings || embeddings.length !== descriptions.length) {
-      console.error('❌ Batch embedding failed for catalog import');
-      return { added: 0, failed: items.length };
+    // Batch embed all descriptions (non-fatal — items are created even if embedding fails)
+    let embeddings: number[][] | null = null;
+    try {
+      embeddings = await this.rag.embedBatch(descriptions);
+      if (embeddings && embeddings.length !== descriptions.length) {
+        console.error('⚠️ Embedding count mismatch, proceeding without embeddings');
+        embeddings = null;
+      }
+    } catch (err) {
+      console.error('⚠️ Batch embedding failed, importing without embeddings:', err);
     }
 
     // Prepare rows for batch insert
@@ -532,7 +569,7 @@ export class CatalogService {
       quantity: item.quantity ?? 1,
       images: item.images || [],
       attributes: item.attributes || {},
-      embedding: JSON.stringify(embeddings[i]),
+      embedding: embeddings?.[i] ? JSON.stringify(embeddings[i]) : null,
       is_active: true,
     }));
 
