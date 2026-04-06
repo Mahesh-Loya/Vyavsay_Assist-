@@ -39,12 +39,19 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
   server.patch('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
+    server.log.info({ params: id, userId: request.userId }, 'PATCH /users/:id called');
+    
     if (id !== request.userId) return reply.status(403).send({ error: 'Forbidden' });
 
     const updates = validate(userUpdate, request.body, reply);
-    if (!updates) return;
+    server.log.info({ updates }, 'Validation passed');
+    if (!updates) {
+      server.log.warn('Validation returned null/undefined');
+      return;
+    }
 
     try {
+      server.log.info('Starting Supabase PATCH');
       const { data, error } = await server.supabase
         .from('wb_users')
         .update(updates)
@@ -52,8 +59,14 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         .select()
         .single();
 
+      server.log.info({ hasError: !!error, hasData: !!data }, 'Supabase response received');
+
       if (error) {
-        server.log.error({ fullError: JSON.stringify(error), updates, userId: request.userId }, 'User PATCH error');
+        server.log.error({ 
+          fullError: JSON.stringify(error), 
+          updates, 
+          userId: request.userId 
+        }, 'User PATCH error from Supabase');
         return reply.status(500).send({ 
           error: 'Failed to update user profile', 
           message: error.message || JSON.stringify(error),
@@ -61,6 +74,7 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           code: error.code 
         });
       }
+      server.log.info('Update successful, sending response');
       return reply.send({ user: data });
     } catch (err: any) {
       server.log.error(err, 'User PATCH exception');
