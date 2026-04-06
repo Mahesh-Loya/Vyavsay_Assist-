@@ -42,12 +42,17 @@ export default fp(async (fastify) => {
       const { data: { user }, error } = await authClient.auth.getUser(token);
 
       if (error || !user) {
+        fastify.log.warn({ error }, 'Invalid or expired token');
         return reply.status(401).send({ error: 'Invalid or expired token' });
       }
 
       // Attach verified user ID to request — all routes use this instead of query/body userId
       request.userId = user.id;
-    } catch (err) {
+      if (request.method === 'PATCH' || request.method === 'GET') {
+        fastify.log.info({ userId: user.id, method: request.method, url: request.url }, 'Auth successful');
+      }
+    } catch (err: any) {
+      fastify.log.error(err, 'Authentication exception');
       return reply.status(401).send({ error: 'Authentication failed' });
     }
   });
