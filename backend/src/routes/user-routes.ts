@@ -53,10 +53,17 @@ export const userRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         .single();
 
       if (error) {
-        return reply.status(500).send({ error: 'Failed to update user profile', details: error.message, code: error.code });
+        server.log.error({ fullError: JSON.stringify(error), updates, userId: request.userId }, 'User PATCH error');
+        return reply.status(500).send({ 
+          error: 'Failed to update user profile', 
+          message: error.message || JSON.stringify(error),
+          hint: (error as any).hint,
+          code: error.code 
+        });
       }
       return reply.send({ user: data });
     } catch (err: any) {
+      server.log.error(err, 'User PATCH exception');
       return reply.status(500).send({ error: 'Unexpected error during update', message: err.message });
     }
   });
