@@ -77,7 +77,7 @@ export const knowledgeCreate = z.object({
 export const userUpdate = z.object({
   business_name: z.string().max(200).nullish(),
   industry: z.string().max(200).nullish(),
-  services: z.array(z.string().max(200)).nullish(),
+  services: z.array(z.string().max(1000)).nullish(),
   business_address: z.string().max(500).nullish(),
   google_maps_link: z.string().max(500).nullish(),
   auto_reply_enabled: z.boolean().nullish(),

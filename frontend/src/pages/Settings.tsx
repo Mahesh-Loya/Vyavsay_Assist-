@@ -207,8 +207,12 @@ const Settings: React.FC = () => {
                     });
                     hasLocalEditsRef.current = false;
                     alert('Profile updated! AI will now use these details.');
-                  } catch (err) {
-                    alert('Failed to save profile');
+                  } catch (err: any) {
+                    const details = err?.response?.data?.details;
+                    const message = err?.response?.data?.message;
+                    const backendError = err?.response?.data?.error;
+                    const detailText = Array.isArray(details) ? details.join('\n') : details;
+                    alert(detailText || message || backendError || 'Failed to save profile');
                   } finally {
                     setSaving(false);
                   }
