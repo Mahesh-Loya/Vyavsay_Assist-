@@ -54,6 +54,10 @@ async function main() {
   const { fileRoutes } = await import('./routes/file-routes.js');
   await fastify.register(fileRoutes, { prefix: '/api/files' });
 
+  // Voice agent webhook (Vapi) — no auth required, Vapi calls directly
+  const { vapiRoutes } = await import('./routes/vapi-routes.js');
+  await fastify.register(vapiRoutes, { prefix: '/api/vapi' });
+
   // Restore persisted Baileys sessions on startup (non-blocking)
   sessionManager.restoreAllSessions().catch(err => {
     console.error('⚠️ Session restore error:', err.message);
